@@ -326,7 +326,7 @@ function WhatIfShareCard({
   const cardRef = useRef<HTMLDivElement>(null);
   const [isCapturing, setIsCapturing] = useState(false);
 
-  const handleShare = async () => {
+    const handleShare = async () => {
     if (!cardRef.current) return;
     setIsCapturing(true);
 
@@ -337,14 +337,22 @@ function WhatIfShareCard({
         backgroundColor: "#0a0a0f",
       });
 
-      if (navigator.share && navigator.canShare) {
-        const file = new File([await (await fetch(dataUrl)).blob()], `whatif-${storyId}.png`, { type: "image/png" });
+      // ✅ FIXED: Pehle file bana le taaki canShare check kar sakein
+      const file = new File(
+        [await (await fetch(dataUrl)).blob()],
+        `whatif-${storyId}.png`,
+        { type: "image/png" }
+      );
+
+      // ✅ FIXED: navigator.canShare ko function ki tarah call kiya gaya hai
+      if (navigator.share && navigator.canShare({ files: [file] })) {
         await navigator.share({
           title: scenario.scenario_title,
-          text: `${userPrompt}\n\n${scenario.meme_text}`,
+          text: scenario.meme_text,
           files: [file],
         });
       } else {
+        // Fallback to download
         const link = document.createElement("a");
         link.download = `whatif-${storyId}.png`;
         link.href = dataUrl;
@@ -356,7 +364,6 @@ function WhatIfShareCard({
       setIsCapturing(false);
     }
   };
-
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
       <div className="relative w-full max-w-md">
