@@ -74,35 +74,39 @@ export default function ShareCard({ attempts, won, gameMode, puzzleId, onClose }
     return modeTexts[gameMode] || "🎮 Test your anime knowledge!";
   };
 
-  const handleShare = async () => {
+    const handleShare = async () => {
     if (!cardRef.current) return;
     setIsCapturing(true);
 
     try {
+      const { toPng } = await import("html-to-image");
       const dataUrl = await toPng(cardRef.current, {
         pixelRatio: 3,
         backgroundColor: "#0a0a0f",
-        style: {
-          transform: "scale(1)",
-          transformOrigin: "top left",
-        },
       });
 
-      if (navigator.share && navigator.canShare) {
-        const file = new File([await (await fetch(dataUrl)).blob()], `mangaldle-${dayNumber}.png`, { type: "image/png" });
+      // ✅ FIXED: Pehle file bana le
+      const file = new File(
+        [await (await fetch(dataUrl)).blob()],
+        "mangaverse-result.png",
+        { type: "image/png" }
+      );
+
+      // ✅ FIXED: canShare ko call kiya gaya hai
+      if (navigator.share && navigator.canShare({ files: [file] })) {
         await navigator.share({
-          title: `MangaLdle #${dayNumber} - ${rank.label}`,
-          text: `${rank.message} Play now: mangaverse.com`,
+          title: "MangaVerse Result",
           files: [file],
         });
       } else {
+        // Fallback to download
         const link = document.createElement("a");
-        link.download = `mangaldle-${dayNumber}-${rank.label}.png`;
+        link.download = "mangaverse-result.png";
         link.href = dataUrl;
         link.click();
       }
     } catch (err) {
-      console.error("Failed to capture card:", err);
+      console.error("Share error:", err);
     } finally {
       setIsCapturing(false);
     }
