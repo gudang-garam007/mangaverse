@@ -1,0 +1,178 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: mangaverse_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-mangaverse}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mangaverse_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-mangaverse_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/scripts/init_db.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - mangaverse_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mangaverse"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  neo4j:
+    image: neo4j:5.15-community
+    container_name: mangaverse_neo4j
+    environment:
+      - NEO4J_AUTH=neo4j/mangaverse_neo4j
+      - NEO4J_PLUGINS=["apoc"]
+      - NEO4J_dbms_memory_heap_initial__size=256m
+      - NEO4J_dbms_memory_heap_max__size=512M
+      - NEO4J_dbms_memory_pagecache_size=256m
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    networks:
+      - mangaverse_network
+    healthcheck:
+      # wget is more reliable than curl in neo4j community image
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:7474 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s  # Gives Neo4j 2 full minutes to start before counting failures
+    restart: unless-stopped
+
+  qdrant:
+    image: qdrant/qdrant:v1.7.4
+    container_name: mangaverse_qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - mangaverse_network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: mangaverse_redis
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - mangaverse_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mangaverse_backend
+    env_file:
+      - ./backend/.env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - /app/__pycache__
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    depends_on:
+      postgres:
+        condition: service_healthy
+      neo4j:
+        condition: service_started  # ✅ CRITICAL FIX: Prevents Docker from restarting Neo4j if healthcheck is slow
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    networks:
+      - mangaverse_network
+    restart: unless-stopped
+
+  celery_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mangaverse_celery_worker
+    command: celery -A app.celery_app worker --loglevel=info --concurrency=2
+    env_file:
+      - ./backend/.env
+    volumes:
+      - ./backend:/app
+      - /app/__pycache__
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    depends_on:
+      redis:
+        condition: service_healthy
+      neo4j:
+        condition: service_started # ✅ Ensures DB is up before worker starts, without healthcheck loops
+    networks:
+      - mangaverse_network
+    restart: unless-stopped
+
+  celery_beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mangaverse_celery_beat
+    command: celery -A app.celery_app beat --loglevel=info
+    env_file:
+      - ./backend/.env
+    volumes:
+      - ./backend:/app
+      - /app/__pycache__
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - mangaverse_network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: mangaverse_frontend
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - backend
+    networks:
+      - mangaverse_network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  neo4j_data:
+  neo4j_logs:
+  qdrant_data:
+  redis_data:
+
+networks:
+  mangaverse_network:
+    driver: bridge

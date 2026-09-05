@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+:root {
+  --neon-cyan: #00F0FF;
+  --neon-purple: #8A2BE2;
+  --neon-orange: #FF6B00;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  @apply bg-obsidian text-white font-sans antialiased;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-obsidian;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-neon-cyan/30 rounded-full;
+}
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-neon-cyan/60;
+}
+
+/* Glassmorphism utility */
+.glass {
+  @apply bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl;
+}
+
+.glass-strong {
+  @apply bg-white/10 backdrop-blur-2xl border border-white/20 rounded-2xl;
+}
+
+/* Neon glow utilities */
+.glow-cyan {
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.3), 0 0 60px rgba(0, 240, 255, 0.1);
+}
+
+.glow-purple {
+  box-shadow: 0 0 20px rgba(138, 43, 226, 0.3), 0 0 60px rgba(138, 43, 226, 0.1);
+}
+
+.glow-orange {
+  box-shadow: 0 0 20px rgba(255, 107, 0, 0.3), 0 0 60px rgba(255, 107, 0, 0.1);
+}
+
+/* Gradient text */
+.text-gradient-cyan {
+  @apply bg-gradient-to-r from-neon-cyan to-blue-400 bg-clip-text text-transparent;
+}
+
+.text-gradient-purple {
+  @apply bg-gradient-to-r from-neon-purple to-pink-400 bg-clip-text text-transparent;
+}
+
+.text-gradient-orange {
+  @apply bg-gradient-to-r from-neon-orange to-yellow-400 bg-clip-text text-transparent;
+}
