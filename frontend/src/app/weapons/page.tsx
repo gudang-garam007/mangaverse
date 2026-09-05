@@ -142,7 +142,7 @@ export default function WeaponsPage() {
   };
 
   // Share Function
-  const handleShareWeapon = async () => {
+    const handleShareWeapon = async () => {
     setIsCapturing(true);
 
     try {
@@ -157,9 +157,15 @@ export default function WeaponsPage() {
         quality: 1.0,
       });
 
-      // Try native share first
-      if (navigator.share && navigator.canShare) {
-        const file = new File([await (await fetch(dataUrl)).blob()], `my-weapon-${quizResult?.name.replace(/\s+/g, '-').toLowerCase()}.png`, { type: "image/png" });
+      // File pehle bana le taaki canShare check kar sakein
+      const file = new File(
+        [await (await fetch(dataUrl)).blob()],
+        `my-weapon-${quizResult?.name.replace(/\s+/g, '-').toLowerCase()}.png`,
+        { type: "image/png" }
+      );
+
+      // ✅ FIXED: navigator.canShare ko function ki tarah call kiya gaya hai
+      if (navigator.share && navigator.canShare({ files: [file] })) {
         await navigator.share({
           title: `My Manga Weapon: ${quizResult?.name}`,
           text: `I got ${quizResult?.name} in the MangaVerse quiz! ${getFunnyMessage(quizResult!)}`,
