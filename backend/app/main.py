@@ -72,6 +72,7 @@ app.add_middleware(
         "http://localhost:3001",
         "http://127.0.0.1:3000",
         "https://mangaverse-tau-umber.vercel.app",
+        "https://manga-ta.vercel.app",
         "http://127.0.0.1:3001"
     ],
     allow_credentials=True,
