@@ -43,6 +43,7 @@ class Settings(BaseSettings):
 
     # Qdrant
     QDRANT_URL: str = "http://qdrant:6333"
+    QDRANT_API_KEY: str = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIiwic3ViamVjdCI6ImFwaS1rZXk6Y2IyOTQ5NmMtZDVlOC00OGQ4LTgyYTEtNWI5MGYxY2Q2OTM5In0.49MnbvMM68s5P_pgcgE36BUo2gWKuxC_IBly33jl9wQ"
 
     # Redis
     REDIS_URL: str = "redis://redis:6379/0"
