@@ -8,6 +8,12 @@ class Neo4jDatabase:
         self._driver = None
 
     async def connect(self):
+        print("--- NEO4J DEBUG ---")
+        print(f"URI: {settings.NEO4J_URI}")
+        print(f"USER: {settings.NEO4J_USER}")
+        print(f"PASS (repr): {repr(settings.NEO4J_PASSWORD)}")
+        print(f"PASS length: {len(settings.NEO4J_PASSWORD)}")
+        print("-------------------")
         self._driver = AsyncGraphDatabase.driver(
             settings.NEO4J_URI,
             auth=(settings.NEO4J_USER, settings.NEO4J_PASSWORD),

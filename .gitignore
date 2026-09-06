@@ -42,3 +42,5 @@ data/processed/
 # Logs
 *.log
 logs/
+# Local Netlify folder
+.netlify

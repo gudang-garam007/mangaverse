@@ -2,6 +2,11 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List
 import json
+from pathlib import Path
+
+# ✅ YE 2 LINES ADD KAR: Ye hamesha backend folder ka exact path nikalega
+BASE_DIR = Path(__file__).resolve().parent.parent
+ENV_FILE_PATH = BASE_DIR / ".env"
 
 class Settings(BaseSettings):
     # ✅ FIX: Ignore extra environment variables to prevent crashes
@@ -28,10 +33,13 @@ class Settings(BaseSettings):
     POSTGRES_DB: str = "mangaverse_db"
     POSTGRES_URL: str = "postgresql+asyncpg://mangaverse:mangaverse_secret_2026@postgres:5432/mangaverse_db"
 
+
     # Neo4j
-    NEO4J_URI: str = "bolt://neo4j:7687"
-    NEO4J_USER: str = "neo4j"
-    NEO4J_PASSWORD: str = "mangaverse_neo4j"
+    # Neo4j
+    NEO4J_URI: str = "neo4j+s://32c5ac7c.databases.neo4j.io"
+    NEO4J_USER: str = "32c5ac7c"
+    NEO4J_PASSWORD: str = "DhFCyr78OktTSwKlfZvaO6yUP_3GHGX-0BgP-QTUsKU"
+    NEO4J_DATABASE: str = "32c5ac7c"
 
     # Qdrant
     QDRANT_URL: str = "http://qdrant:6333"

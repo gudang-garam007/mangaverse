@@ -2,6 +2,11 @@
 import asyncio
 import sys
 import os
+from dotenv import load_dotenv
+
+# Ye line sabse pehle .env file ko zabardasti load karegi
+env_path = os.path.join(os.path.dirname(__file__), '..', '.env')
+load_dotenv(env_path)
 from loguru import logger
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
