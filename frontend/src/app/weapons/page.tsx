@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import  Script  from "next/script"; // ✅ ADDED FOR ADS
+import Script from "next/script";
 import { Sword, Zap, Shield, Search, Share2, X, Flame, Sparkles, Trophy } from "lucide-react";
 
 const API_BASE = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/weapons`;
@@ -30,6 +30,9 @@ export default function WeaponsPage() {
   const [loading, setLoading] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
 
+  // ✅ NEW: Specific loading state for initial database fetch
+  const [isDatabaseLoading, setIsDatabaseLoading] = useState(true);
+
   // Quiz states
   const [quizStep, setQuizStep] = useState(0);
   const [quizAnswers, setQuizAnswers] = useState<Record<string, string>>({});
@@ -45,6 +48,7 @@ export default function WeaponsPage() {
   }, []);
 
   const fetchWeapons = async (q?: string) => {
+    if (!q) setIsDatabaseLoading(true); // Show loader only on initial full fetch
     try {
       const url = q ? `${API_BASE}/search?q=${encodeURIComponent(q)}` : `${API_BASE}/all`;
       const res = await fetch(url);
@@ -52,6 +56,8 @@ export default function WeaponsPage() {
       if (data.weapons) setWeapons(data.weapons);
     } catch (err) {
       console.error("Fetch error:", err);
+    } finally {
+      if (!q) setIsDatabaseLoading(false); // Hide loader when done
     }
   };
 
@@ -282,62 +288,82 @@ export default function WeaponsPage() {
               />
             </div>
 
-            {/* Weapons Grid */}
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {weapons.map((w) => (
-                <div
-                  key={w.name}
-                  onClick={() => setSelectedWeapon(w)}
-                  className="bg-gray-900/60 backdrop-blur-sm rounded-xl border border-gray-800 hover:border-red-500/50 p-4 cursor-pointer transition-all hover:scale-[1.02] group"
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <h3 className="text-lg font-bold text-white group-hover:text-red-400 transition">{w.name}</h3>
-                    <span className={`text-sm font-black ${getPowerColor(w.power)}`}>{w.power}</span>
-                  </div>
-                  <p className="text-xs text-gray-400 mb-1">{w.owner} • {w.anime}</p>
-                  <p className="text-xs text-gray-500 mb-3">{w.type}</p>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="text-gray-500 w-12">PWR</span>
-                      {getStatBar(w.power, 1000)}
-                    </div>
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="text-gray-500 w-12">SPD</span>
-                      {getStatBar(w.speed)}
-                    </div>
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="text-gray-500 w-12">HAX</span>
-                      {getStatBar(w.hax)}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* ✅ ADSTERRA 320x50 MOBILE BANNER (BOTTOM OF DATABASE) */}
-            <div className="w-full flex justify-center my-8">
-              <Script id="adsterra-mobile-config" strategy="afterInteractive">
-                {`
-                  atOptions = {
-                    'key' : '5857abbf9515619a371c38758a4e2461',
-                    'format' : 'iframe',
-                    'height' : 50,
-                    'width' : 320,
-                    'params' : {}
-                  };
-                `}
-              </Script>
-              <Script
-                src="https://www.highrevenueformat.com/5857abbf9515619a371c38758a4e2461/invoke.js"
-                strategy="afterInteractive"
-              />
-            </div>
-
-            {weapons.length === 0 && (
-              <div className="text-center py-12 text-gray-500">
-                <Sword className="w-16 h-16 mx-auto mb-4 opacity-30" />
-                <p>No weapons found. Run the seed script first!</p>
+            {/* ✅ LOADING UI: Jab Weapons Database se aa rahe honge */}
+            {isDatabaseLoading ? (
+              <div className="flex flex-col items-center justify-center py-20 animate-in fade-in">
+                <div className="w-16 h-16 border-4 border-red-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                <p className="text-red-400 font-bold animate-pulse text-lg">⚔️ Forging the Arsenal...</p>
+                <p className="text-xs text-gray-500 mt-2 text-center max-w-xs">
+                  (Fetching 90+ iconic weapons from the Neo4j Cloud Database)
+                </p>
               </div>
+            ) : (
+              <>
+                {/* Weapons Grid */}
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {weapons.map((w) => (
+                    <div
+                      key={w.name}
+                      onClick={() => setSelectedWeapon(w)}
+                      className="bg-gray-900/60 backdrop-blur-sm rounded-xl border border-gray-800 hover:border-red-500/50 p-4 cursor-pointer transition-all hover:scale-[1.02] group"
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <h3 className="text-lg font-bold text-white group-hover:text-red-400 transition">{w.name}</h3>
+                        <span className={`text-sm font-black ${getPowerColor(w.power)}`}>{w.power}</span>
+                      </div>
+                      <p className="text-xs text-gray-400 mb-1">{w.owner} • {w.anime}</p>
+                      <p className="text-xs text-gray-500 mb-3">{w.type}</p>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 text-xs">
+                          <span className="text-gray-500 w-12">PWR</span>
+                          {getStatBar(w.power, 1000)}
+                        </div>
+                        <div className="flex items-center gap-2 text-xs">
+                          <span className="text-gray-500 w-12">SPD</span>
+                          {getStatBar(w.speed)}
+                        </div>
+                        <div className="flex items-center gap-2 text-xs">
+                          <span className="text-gray-500 w-12">HAX</span>
+                          {getStatBar(w.hax)}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* ✅ ADSTERRA 320x50 MOBILE BANNER (BOTTOM OF DATABASE) */}
+                <div className="w-full flex justify-center my-8">
+                  <Script id="adsterra-mobile-config" strategy="afterInteractive">
+                    {`
+                      atOptions = {
+                        'key' : '5857abbf9515619a371c38758a4e2461',
+                        'format' : 'iframe',
+                        'height' : 50,
+                        'width' : 320,
+                        'params' : {}
+                      };
+                    `}
+                  </Script>
+                  <Script
+                    src="https://www.highrevenueformat.com/5857abbf9515619a371c38758a4e2461/invoke.js"
+                    strategy="afterInteractive"
+                  />
+                </div>
+
+                {weapons.length === 0 && !searchQuery && (
+                  <div className="text-center py-12 text-gray-500">
+                    <Sword className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                    <p>No weapons found. Run the seed script first!</p>
+                  </div>
+                )}
+
+                {weapons.length === 0 && searchQuery && (
+                  <div className="text-center py-12 text-gray-500">
+                    <Search className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                    <p>No weapons match your search.</p>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
@@ -543,7 +569,18 @@ export default function WeaponsPage() {
               </button>
             </div>
 
-            {battleResult && (
+            {/* ✅ LOADING UI: Jab Weapon Battle Calculate ho raha ho */}
+            {loading && (
+              <div className="flex flex-col items-center justify-center py-16 animate-in fade-in">
+                <div className="w-16 h-16 border-4 border-red-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                <p className="text-red-400 font-bold animate-pulse text-lg">⚔️ Simulating Epic Battle...</p>
+                <p className="text-xs text-gray-500 mt-2 text-center max-w-xs">
+                  (AI is analyzing power, speed, and hax from the database...)
+                </p>
+              </div>
+            )}
+
+            {battleResult && !loading && (
               <div className="bg-gradient-to-br from-red-900/40 to-orange-900/40 rounded-2xl border border-red-500/30 p-6 text-center animate-in fade-in zoom-in duration-500">
                 <div className="text-4xl mb-4">🏆</div>
                 <h3 className="text-3xl font-black text-white mb-2">{battleResult.winner}</h3>

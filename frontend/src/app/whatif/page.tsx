@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useRef } from "react";
-import  Script  from "next/script"; // ✅ ADDED FOR ADS
-import { Sparkles, Share2, Flame, X } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import Script from "next/script";
+import { Sparkles, Share2, Flame, X, AlertCircle } from "lucide-react";
 
 interface Choice {
   id: number;
@@ -26,6 +26,8 @@ const API_BASE = `${process.env.NEXT_PUBLIC_API_URL}/api/whatif`;
 export default function WhatIfPage() {
   const [scenario, setScenario] = useState<WhatIfScenario | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [loadingMessage, setLoadingMessage] = useState("Consulting the multiverse...");
   const [userPrompt, setUserPrompt] = useState("");
   const [selectedCharacters, setSelectedCharacters] = useState<string[]>([]);
   const [storyHistory, setStoryHistory] = useState<WhatIfScenario[]>([]);
@@ -39,8 +41,30 @@ export default function WhatIfPage() {
     "Gojo", "Tanjiro", "Eren", "Saitama", "Vegeta"
   ];
 
+  // ✅ Rotating Loading Messages
+  useEffect(() => {
+    if (loading) {
+      const messages = [
+        "Consulting the multiverse...",
+        "Gathering chakra and ki...",
+        "Asking the anime gods for permission...",
+        "Calculating power levels...",
+        "Drawing the manga panels...",
+        "Brewing some intense plot twists..."
+      ];
+      let index = 0;
+      setLoadingMessage(messages[0]);
+      const interval = setInterval(() => {
+        index = (index + 1) % messages.length;
+        setLoadingMessage(messages[index]);
+      }, 2500);
+      return () => clearInterval(interval);
+    }
+  }, [loading]);
+
   const generateScenario = async (choiceId?: number) => {
     setLoading(true);
+    setError(""); // Clear previous errors
     try {
       const payload = {
         scenario: userPrompt,
@@ -63,9 +87,11 @@ export default function WhatIfPage() {
         }
         setScenario(data.scenario);
         setCurrentStoryId(data.story_id);
+      } else {
+        setError(data.detail || data.error || "Failed to generate scenario. The server might be waking up, please try again.");
       }
-    } catch (err) {
-      console.error("Generation error:", err);
+    } catch (err: any) {
+      setError(`Connection Error: ${err.message || "Something went wrong"}`);
     } finally {
       setLoading(false);
     }
@@ -130,7 +156,8 @@ export default function WhatIfPage() {
                           : [...prev, char]
                       );
                     }}
-                    className={`px-4 py-2 rounded-lg border transition-all ${
+                    disabled={loading}
+                    className={`px-4 py-2 rounded-lg border transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                       selectedCharacters.includes(char)
                         ? "bg-purple-600 border-purple-500 text-white"
                         : "bg-gray-800 border-gray-700 text-gray-300 hover:border-purple-500/50"
@@ -145,7 +172,8 @@ export default function WhatIfPage() {
                 ref={characterInput}
                 type="text"
                 placeholder="Or type custom characters (comma separated)"
-                className="w-full bg-gray-950 border border-gray-800 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
+                disabled={loading}
+                className="w-full bg-gray-950 border border-gray-800 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 disabled:opacity-50"
                 onChange={(e) => {
                   if (e.target.value) {
                     setSelectedCharacters(e.target.value.split(",").map(c => c.trim()));
@@ -155,14 +183,37 @@ export default function WhatIfPage() {
             </div>
 
             {/* Scenario Input */}
-            <div className="bg-gray-900/60 backdrop-blur-sm rounded-2xl p-6 border border-gray-800">
+            <div className="bg-gray-900/60 backdrop-blur-sm rounded-2xl p-6 border border-gray-800 relative">
+
+              {/* ✅ LOADING OVERLAY (Blocks clicks & shows fun messages) */}
+              {loading && (
+                <div className="absolute inset-0 bg-gray-950/90 backdrop-blur-md rounded-2xl flex flex-col items-center justify-center z-20 animate-in fade-in">
+                  <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                  <p className="text-purple-400 font-bold animate-pulse text-lg text-center px-4">
+                    {loadingMessage}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-3 text-center max-w-xs">
+                    (AI is forging the story. This may take a few seconds if the server is waking up...)
+                  </p>
+                </div>
+              )}
+
               <h2 className="text-xl font-bold text-white mb-4">Your What-If Scenario</h2>
               <textarea
                 value={userPrompt}
                 onChange={(e) => setUserPrompt(e.target.value)}
                 placeholder="e.g., 'Naruto and Goku open a street food stall in Delhi' or 'Light Yagami becomes a teacher'"
-                className="w-full h-32 bg-gray-950 border border-gray-800 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 resize-none"
+                disabled={loading}
+                className="w-full h-32 bg-gray-950 border border-gray-800 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 resize-none disabled:opacity-50 transition"
               />
+
+              {/* ✅ ERROR MESSAGE DISPLAY */}
+              {error && (
+                <div className="mt-4 p-4 bg-red-900/30 border border-red-800 rounded-lg text-red-300 text-sm flex items-start gap-2 animate-in slide-in-from-top-2">
+                  <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                  <span>{error}</span>
+                </div>
+              )}
 
               <button
                 onClick={() => generateScenario()}
@@ -172,7 +223,7 @@ export default function WhatIfPage() {
                 {loading ? (
                   <>
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Generating Interactive Story...
+                    Generating...
                   </>
                 ) : (
                   <>
@@ -205,9 +256,23 @@ export default function WhatIfPage() {
 
         {/* Interactive Story Display */}
         {scenario && (
-          <div className="space-y-6 animate-in fade-in duration-500">
+          <div className="space-y-6 animate-in fade-in duration-500 relative">
+
+            {/* ✅ LOADING OVERLAY FOR CHOICES */}
+            {loading && (
+              <div className="absolute inset-0 z-30 bg-gray-950/90 backdrop-blur-md rounded-3xl flex flex-col items-center justify-center animate-in fade-in border border-purple-500/30">
+                <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                <p className="text-purple-400 font-bold animate-pulse text-lg text-center px-4">
+                  {loadingMessage}
+                </p>
+                <p className="text-xs text-gray-500 mt-3 text-center max-w-xs">
+                  (AI is continuing the story...)
+                </p>
+              </div>
+            )}
+
             {/* Story Card */}
-            <div className="bg-gradient-to-br from-purple-900/40 to-pink-900/40 backdrop-blur-sm rounded-2xl border border-purple-500/30 overflow-hidden">
+            <div className={`bg-gradient-to-br from-purple-900/40 to-pink-900/40 backdrop-blur-sm rounded-2xl border border-purple-500/30 overflow-hidden transition-opacity ${loading ? 'opacity-40' : 'opacity-100'}`}>
               {/* Title */}
               <div className="bg-black/30 p-4 border-b border-white/10">
                 <h2 className="text-2xl font-black text-white text-center">
@@ -249,14 +314,16 @@ export default function WhatIfPage() {
                 <div className="flex gap-3 mb-6">
                   <button
                     onClick={() => setShowShareCard(true)}
-                    className="flex-1 py-3 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-bold rounded-xl transition shadow-lg shadow-purple-500/30 flex items-center justify-center gap-2"
+                    disabled={loading}
+                    className="flex-1 py-3 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 disabled:opacity-50 text-white font-bold rounded-xl transition shadow-lg shadow-purple-500/30 flex items-center justify-center gap-2"
                   >
                     <Share2 className="w-5 h-5" />
                     Share Meme Card
                   </button>
                   <button
                     onClick={resetScenario}
-                    className="px-6 py-3 bg-gray-800 hover:bg-gray-700 text-white font-bold rounded-xl transition border border-gray-700"
+                    disabled={loading}
+                    className="px-6 py-3 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-white font-bold rounded-xl transition border border-gray-700"
                   >
                     New Story
                   </button>
@@ -272,7 +339,7 @@ export default function WhatIfPage() {
                       key={choice.id}
                       onClick={() => handleChoice(choice.id)}
                       disabled={loading}
-                      className="w-full p-4 bg-gray-900/80 hover:bg-purple-900/40 border-2 border-gray-700 hover:border-purple-500/50 rounded-xl text-left transition-all group disabled:opacity-50"
+                      className="w-full p-4 bg-gray-900/80 hover:bg-purple-900/40 border-2 border-gray-700 hover:border-purple-500/50 rounded-xl text-left transition-all group disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <div className="flex items-start gap-3">
                         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold flex-shrink-0">
