@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Script } from "next/script"; // ✅ ADDED FOR ADS
+import  Script  from "next/script"; // ✅ ADDED FOR ADS
 import { Sparkles, Share2, Flame, X } from "lucide-react";
 
 interface Choice {

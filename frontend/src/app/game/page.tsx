@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Script } from "next/script"; // ✅ ADDED FOR ADS
+import  Script  from "next/script"; // ✅ ADDED FOR ADS
 import FastImage from "@/components/FastImage";
 import ShareCard from "@/components/ShareCard";
 
