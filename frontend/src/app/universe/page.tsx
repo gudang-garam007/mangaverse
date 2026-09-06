@@ -8,7 +8,7 @@ export default function UniversePage() {
   useEffect(() => {
     const fetchUniverses = async () => {
       try {
-        const res = await fetch("http://localhost:8000/api/universe/list");
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/universe/list`);
         const data = await res.json();
         setUniverses(data.universes || []);
       } catch (err) {

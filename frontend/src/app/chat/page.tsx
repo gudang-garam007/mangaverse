@@ -12,7 +12,7 @@ export default function ChatPage() {
     setLoading(true);
     setReply("");
     try {
-      const res = await fetch("http://localhost:8000/api/chat/message", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chat/message`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ character_name: character, message }),

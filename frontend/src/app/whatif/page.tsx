@@ -20,7 +20,7 @@ interface WhatIfScenario {
   tags: string[];
 }
 
-const API_BASE = "http://localhost:8000/api/whatif";
+const API_BASE = `${process.env.NEXT_PUBLIC_API_URL}/api/whatif`;
 
 export default function WhatIfPage() {
   const [scenario, setScenario] = useState<WhatIfScenario | null>(null);

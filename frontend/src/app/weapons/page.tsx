@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Sword, Zap, Shield, Search, Share2, X, Flame, Sparkles, Trophy } from "lucide-react";
 
-const API_BASE = "http://localhost:8000/api/weapons";
+const API_BASE = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/weapons`;
 
 interface Weapon {
   name: string;

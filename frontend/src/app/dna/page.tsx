@@ -10,7 +10,7 @@ export default function DNAPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:8000/api/dna/analyze", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/dna/analyze`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ manga_title: manga }),

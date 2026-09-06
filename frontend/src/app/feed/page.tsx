@@ -8,7 +8,7 @@ export default function FeedPage() {
   useEffect(() => {
     const fetchFeed = async () => {
       try {
-        const res = await fetch("http://localhost:8000/api/feed/trending");
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/feed/trending`);
         const data = await res.json();
         setFeed(data);
       } catch (err) {

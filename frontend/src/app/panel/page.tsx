@@ -13,7 +13,7 @@ export default function PanelPage() {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const res = await fetch("http://localhost:8000/api/panel/analyze", {
+     const res = await fetch(${process.env.NEXT_PUBLIC_API_URL}/api/panel/analyze, {
         method: "POST",
         body: formData,
       });

@@ -25,7 +25,7 @@ type GameMode = "silhouette" | "quote" | "radar" | "progressive";
 
 const MAX_ATTEMPTS = 6;
 const STORAGE_KEY = "mangaldle_state";
-const API_BASE = "http://localhost:8000/api/game";
+const API_BASE = `${process.env.NEXT_PUBLIC_API_URL}/api/game`;
 
 export default function GamePage() {
   const [guess, setGuess] = useState("");

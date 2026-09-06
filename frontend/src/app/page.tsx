@@ -23,7 +23,7 @@ export default function Home() {
     const fetchData = async () => {
       // 1. Fetch Characters
       try {
-        const res = await fetch("http://localhost:8000/api/battle/characters");
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/battle/characters`);
         const data = await res.json();
         if (data.status === "success") {
           setAllCharacters(data.characters);
@@ -34,7 +34,7 @@ export default function Home() {
 
       // 2. Fetch Daily Puzzle
       try {
-        const res = await fetch("http://localhost:8000/api/game/today");
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/game/today`);
         const data = await res.json();
         if (data.status === "success") {
           setDailyPuzzle(data);
@@ -52,7 +52,7 @@ export default function Home() {
     setBattleResult(null);
     setBattleError("");
     try {
-      const res = await fetch("http://localhost:8000/api/battle/analyze", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/battle/analyze`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ character_1: char1, character_2: char2 }),
@@ -96,7 +96,7 @@ Style: High quality black & white manga, dynamic action, detailed expressions`;
       const formData = new FormData();
       formData.append("prompt", mangaPrompt);
       formData.append("style", mangaStyle);
-      const res = await fetch("http://localhost:8000/api/convert/text-to-manga", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/convert/text-to-manga`, {
         method: "POST",
         body: formData,
       });
