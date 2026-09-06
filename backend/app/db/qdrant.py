@@ -5,7 +5,9 @@ from loguru import logger
 
 class QdrantDatabase:
     def __init__(self):
-        self.client = QdrantClient(url=settings.QDRANT_URL)
+        self.client = QdrantClient(url=settings.QDRANT_URL,
+                                   api_key=settings.QDRANT_API_KEY  # <--- YE LINE MISSING THI!
+        )
         self.collections_initialized = False
 
     def init_collections(self):
