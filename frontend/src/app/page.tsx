@@ -202,38 +202,87 @@ Style: High quality black & white manga, dynamic action, detailed expressions`;
         </div>
 
         {/* ==================== BATTLE ARENA ==================== */}
+                {/* ==================== BATTLE ARENA ==================== */}
         {activeTab === "battle" && (
           <div className="bg-gray-900 p-6 rounded-xl border border-gray-800 shadow-xl">
-            <form onSubmit={handleBattle} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-400 mb-2">Character 1</label>
-                <select value={char1} onChange={(e) => setChar1(e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500" required>
-                  <option value="">-- Select Character 1 --</option>
-                  {allCharacters.map((char) => (
-                    <option key={char} value={char.split(" (")[0]}>{char}</option>
-                  ))}
-                </select>
+
+            {/* ✅ 1. LOADING UI: Jab Characters Database se aa rahe honge */}
+            {allCharacters.length === 0 && !battleLoading && (
+              <div className="flex flex-col items-center justify-center py-16 animate-in fade-in">
+                <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                <p className="text-purple-400 font-bold animate-pulse text-lg">Loading Character Database... ⚔️</p>
+                <p className="text-xs text-gray-500 mt-2 text-center">(Fetching 90+ characters from Neo4j Cloud)</p>
               </div>
+            )}
 
-              <div>
-                <label className="block text-sm font-medium text-gray-400 mb-2">Character 2</label>
-                <select value={char2} onChange={(e) => setChar2(e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500" required>
-                  <option value="">-- Select Character 2 --</option>
-                  {allCharacters.map((char) => (
-                    <option key={char} value={char.split(" (")[0]}>{char}</option>
-                  ))}
-                </select>
+            {/* ✅ 2. LOADING UI: Jab Battle Analyze ho raha hoga */}
+            {battleLoading && (
+              <div className="flex flex-col items-center justify-center py-16 animate-in fade-in">
+                <div className="w-16 h-16 border-4 border-red-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                <p className="text-red-400 font-bold animate-pulse text-lg">⚔️ Simulating Epic Battle...</p>
+                <p className="text-xs text-gray-500 mt-2 text-center max-w-xs">
+                  (AI is analyzing power, speed, and hax from the database. This may take 10-15 seconds...)
+                </p>
               </div>
+            )}
 
-              <button type="submit" disabled={battleLoading || !char1 || !char2} className={`w-full font-bold py-3 rounded-lg transition ${battleLoading || !char1 || !char2 ? "bg-gray-600 cursor-not-allowed opacity-50 text-gray-300" : "bg-purple-600 hover:bg-purple-700 text-white"}`}>
-                {battleLoading ? "⏳ Analyzing Battle (Please wait 10-15s)..." : "⚔️ Start Battle Analysis"}
-              </button>
-            </form>
+            {/* Form sirf tab dikhega jab battle loading nahi ho raha ho */}
+            {!battleLoading && (
+              <form onSubmit={handleBattle} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">Character 1</label>
+                  <select
+                    value={char1}
+                    onChange={(e) => setChar1(e.target.value)}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
+                    required
+                    disabled={allCharacters.length === 0}
+                  >
+                    <option value="">-- Select Character 1 --</option>
+                    {allCharacters.map((char) => (
+                      <option key={char} value={char.split(" (")[0]}>{char}</option>
+                    ))}
+                  </select>
+                </div>
 
-            {battleError && (<div className="mt-6 p-4 bg-red-900/30 border border-red-800 rounded-lg text-red-300">{battleError}</div>)}
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">Character 2</label>
+                  <select
+                    value={char2}
+                    onChange={(e) => setChar2(e.target.value)}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
+                    required
+                    disabled={allCharacters.length === 0}
+                  >
+                    <option value="">-- Select Character 2 --</option>
+                    {allCharacters.map((char) => (
+                      <option key={char} value={char.split(" (")[0]}>{char}</option>
+                    ))}
+                  </select>
+                </div>
 
-            {battleResult && battleResult.success && (
-              <div className="mt-6 space-y-6">
+                <button
+                  type="submit"
+                  disabled={battleLoading || !char1 || !char2 || allCharacters.length === 0}
+                  className={`w-full font-bold py-3 rounded-lg transition ${
+                    battleLoading || !char1 || !char2 || allCharacters.length === 0
+                      ? "bg-gray-600 cursor-not-allowed opacity-50 text-gray-300"
+                      : "bg-purple-600 hover:bg-purple-700 text-white"
+                  }`}
+                >
+                  {battleLoading ? "⏳ Analyzing Battle..." : "⚔️ Start Battle Analysis"}
+                </button>
+              </form>
+            )}
+
+            {battleError && !battleLoading && (
+              <div className="mt-6 p-4 bg-red-900/30 border border-red-800 rounded-lg text-red-300">
+                {battleError}
+              </div>
+            )}
+
+            {battleResult && battleResult.success && !battleLoading && (
+              <div className="mt-6 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 {battleResult.extreme_mismatch && (
                   <div className="bg-red-900/30 border-2 border-red-500 p-4 rounded-lg">
                     <h4 className="font-bold text-red-400 mb-2">⚠️ EXTREME POWER GAP DETECTED</h4>
@@ -286,13 +335,13 @@ Style: High quality black & white manga, dynamic action, detailed expressions`;
                     {battleResult.win_probability && (
                       <div className="mt-4 flex items-center gap-4">
                         <div className="flex-1 bg-gray-700 rounded-full h-4 overflow-hidden">
-                          <div className="bg-blue-500 h-full" style={{ width: `${battleResult.win_probability.character_1 || battleResult.win_probability.char1 || 50}%` }}></div>
+                          <div className="bg-blue-500 h-full transition-all duration-1000" style={{ width: `${battleResult.win_probability.character_1 || battleResult.win_probability.char1 || 50}%` }}></div>
                         </div>
                         <span className="text-sm font-mono">
                           {battleResult.win_probability.character_1 || battleResult.win_probability.char1 || 50}% vs {battleResult.win_probability.character_2 || battleResult.win_probability.char2 || 50}%
                         </span>
                         <div className="flex-1 bg-gray-700 rounded-full h-4 overflow-hidden">
-                          <div className="bg-red-500 h-full" style={{ width: `${battleResult.win_probability.character_2 || battleResult.win_probability.char2 || 50}%` }}></div>
+                          <div className="bg-red-500 h-full transition-all duration-1000" style={{ width: `${battleResult.win_probability.character_2 || battleResult.win_probability.char2 || 50}%` }}></div>
                         </div>
                       </div>
                     )}
