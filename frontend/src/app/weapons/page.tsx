@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
+import { Script } from "next/script"; // ✅ ADDED FOR ADS
 import { Sword, Zap, Shield, Search, Share2, X, Flame, Sparkles, Trophy } from "lucide-react";
 
 const API_BASE = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/weapons`;
@@ -142,7 +143,7 @@ export default function WeaponsPage() {
   };
 
   // Share Function
-    const handleShareWeapon = async () => {
+  const handleShareWeapon = async () => {
     setIsCapturing(true);
 
     try {
@@ -157,14 +158,12 @@ export default function WeaponsPage() {
         quality: 1.0,
       });
 
-      // File pehle bana le taaki canShare check kar sakein
       const file = new File(
         [await (await fetch(dataUrl)).blob()],
         `my-weapon-${quizResult?.name.replace(/\s+/g, '-').toLowerCase()}.png`,
         { type: "image/png" }
       );
 
-      // ✅ FIXED: navigator.canShare ko function ki tarah call kiya gaya hai
       if (navigator.share && navigator.canShare({ files: [file] })) {
         await navigator.share({
           title: `My Manga Weapon: ${quizResult?.name}`,
@@ -172,7 +171,6 @@ export default function WeaponsPage() {
           files: [file],
         });
       } else {
-        // Fallback to download
         const link = document.createElement("a");
         link.download = `my-weapon-${quizResult?.name.replace(/\s+/g, '-').toLowerCase()}.png`;
         link.href = dataUrl;
@@ -229,8 +227,8 @@ export default function WeaponsPage() {
     <main className="min-h-screen bg-gradient-to-br from-gray-950 via-red-950/10 to-gray-950 text-gray-100 p-4 pb-20">
       <div className="max-w-5xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-8 pt-4">
-          <h1 className="text-5xl font-black bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500 bg-clip-text text-transparent tracking-tight mb-2">
+        <div className="text-center mb-6 pt-4">
+          <h1 className="text-4xl md:text-5xl font-black bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500 bg-clip-text text-transparent tracking-tight mb-2">
             ⚔️ Manga Arsenal
           </h1>
           <p className="text-sm text-gray-400">
@@ -239,7 +237,7 @@ export default function WeaponsPage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 mb-8 justify-center">
+        <div className="flex gap-2 mb-6 justify-center flex-wrap">
           {(["database", "quiz", "battle"] as Tab[]).map((tab) => (
             <button
               key={tab}
@@ -256,6 +254,17 @@ export default function WeaponsPage() {
               {tab}
             </button>
           ))}
+        </div>
+
+        {/* ✅ ADSTERRA NATIVE BANNER (TOP - HIGH VISIBILITY) */}
+        <div className="w-full flex justify-center my-4 min-h-[100px] bg-gray-900/30 rounded-xl border border-gray-800/50 overflow-hidden">
+          <Script
+            src="https://pl31218662.profitableratecpmnetwork.com/fb65e70ebb201c3fe329914b0de99570/invoke.js"
+            strategy="afterInteractive"
+            async
+            data-cfasync="false"
+          />
+          <div id="container-fb65e70ebb201c3fe329914b0de99570"></div>
         </div>
 
         {/* DATABASE TAB */}
@@ -303,6 +312,25 @@ export default function WeaponsPage() {
                   </div>
                 </div>
               ))}
+            </div>
+
+            {/* ✅ ADSTERRA 320x50 MOBILE BANNER (BOTTOM OF DATABASE) */}
+            <div className="w-full flex justify-center my-8">
+              <Script id="adsterra-mobile-config" strategy="afterInteractive">
+                {`
+                  atOptions = {
+                    'key' : '5857abbf9515619a371c38758a4e2461',
+                    'format' : 'iframe',
+                    'height' : 50,
+                    'width' : 320,
+                    'params' : {}
+                  };
+                `}
+              </Script>
+              <Script
+                src="https://www.highrevenueformat.com/5857abbf9515619a371c38758a4e2461/invoke.js"
+                strategy="afterInteractive"
+              />
             </div>
 
             {weapons.length === 0 && (
@@ -372,7 +400,6 @@ export default function WeaponsPage() {
 
                   {/* Content */}
                   <div className="relative z-10">
-                    {/* Header */}
                     <div className="text-center mb-6">
                       <div className="inline-flex items-center gap-2 px-4 py-2 bg-black/40 backdrop-blur-sm rounded-full border border-red-500/50 mb-3">
                         <span className="text-xs font-bold text-red-300 uppercase tracking-wider">⚔️ My Manga Weapon</span>
@@ -383,7 +410,6 @@ export default function WeaponsPage() {
                       <p className="text-sm text-orange-300">{quizResult.type}</p>
                     </div>
 
-                    {/* Weapon Image or Icon */}
                     <div className="my-6 flex justify-center">
                       {quizResult.image_url ? (
                         <div className="relative w-40 h-40 rounded-2xl overflow-hidden border-4 border-red-500/50 shadow-2xl shadow-red-500/40">
@@ -407,7 +433,6 @@ export default function WeaponsPage() {
                       )}
                     </div>
 
-                    {/* Stats Grid */}
                     <div className="grid grid-cols-3 gap-3 mb-6">
                       <div className="p-3 bg-black/40 backdrop-blur-sm rounded-xl border border-red-500/30 text-center">
                         <div className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">POWER</div>
@@ -425,14 +450,12 @@ export default function WeaponsPage() {
                       </div>
                     </div>
 
-                    {/* Funny Personalized Message */}
                     <div className="p-4 bg-gradient-to-r from-black/40 to-gray-900/40 backdrop-blur-sm rounded-xl border border-white/10 mb-4">
                       <p className="text-sm text-white italic text-center leading-relaxed">
                         {getFunnyMessage(quizResult)}
                       </p>
                     </div>
 
-                    {/* Ability */}
                     <div className="p-3 bg-black/30 rounded-xl border border-white/10 mb-3">
                       <div className="flex items-center gap-2 mb-1">
                         <Zap className="w-3 h-3 text-yellow-400" />
@@ -441,13 +464,12 @@ export default function WeaponsPage() {
                       <p className="text-xs text-white font-medium">{quizResult.ability}</p>
                     </div>
 
-                    {/* Footer */}
                     <div className="pt-4 border-t border-white/10 text-center">
                       <div className="flex items-center justify-center gap-2 mb-1">
                         <span className="text-xl">🎌</span>
                         <span className="text-sm font-bold text-white">MangaVerse</span>
                       </div>
-                      <p className="text-[10px] text-gray-400">mangaverse.com/weapons</p>
+                      <p className="text-[10px] text-gray-400">manga-ta.vercel.app/weapons</p>
                     </div>
                   </div>
                 </div>

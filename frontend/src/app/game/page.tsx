@@ -1,8 +1,8 @@
 "use client";
 import { useState, useEffect } from "react";
+import { Script } from "next/script"; // ✅ ADDED FOR ADS
 import FastImage from "@/components/FastImage";
 import ShareCard from "@/components/ShareCard";
-
 
 interface Hint {
   value: string | number;
@@ -188,18 +188,18 @@ export default function GamePage() {
       } else if (newAttempts.length >= MAX_ATTEMPTS) {
         setGameOver(true);
         // ✅ AUTO-REVEAL: Jab user haar jaye, character reveal karo
-  try {
-    const revealRes = await fetch(`${API_BASE}/reveal`);
-    const revealData = await revealRes.json();
-    if (revealData.status === "success") {
-      setAnswer(revealData.name);
-      setRevealed(true);
-    }
-  } catch (err) {
-    console.error("Failed to reveal answer:", err);
-  }
-  setShowShareCard(true);
-}
+        try {
+          const revealRes = await fetch(`${API_BASE}/reveal`);
+          const revealData = await revealRes.json();
+          if (revealData.status === "success") {
+            setAnswer(revealData.name);
+            setRevealed(true);
+          }
+        } catch (err) {
+          console.error("Failed to reveal answer:", err);
+        }
+        setShowShareCard(true);
+      }
     } catch {
       setError("Network error. Try again.");
     } finally {
@@ -234,7 +234,7 @@ export default function GamePage() {
       })
       .join("\n");
 
-    return `🎌 MangaLdle #${puzzleId}\nMode: ${gameMode.toUpperCase()}\n${won ? `✅ Solved in ${attempts.length}/${MAX_ATTEMPTS}!` : `❌ Failed!`}\n\n${emojiGrid}\n\n👉 Play: mangaverse.com`;
+    return `🎌 MangaLdle #${puzzleId}\nMode: ${gameMode.toUpperCase()}\n${won ? `✅ Solved in ${attempts.length}/${MAX_ATTEMPTS}!` : `❌ Failed!`}\n\n${emojiGrid}\n\n👉 Play: manga-ta.vercel.app/game`;
   };
 
   const share = async () => {
@@ -378,6 +378,17 @@ export default function GamePage() {
           )}
         </div>
 
+        {/* ✅ ADSTERRA NATIVE BANNER (TOP - HIGH VISIBILITY) */}
+        <div className="w-full flex justify-center my-6 min-h-[100px] bg-gray-900/30 rounded-xl border border-gray-800/50 overflow-hidden">
+          <Script
+            src="https://pl31218662.profitableratecpmnetwork.com/fb65e70ebb201c3fe329914b0de99570/invoke.js"
+            strategy="afterInteractive"
+            async
+            data-cfasync="false"
+          />
+          <div id="container-fb65e70ebb201c3fe329914b0de99570"></div>
+        </div>
+
         {/* 🎮 MODE-SPECIFIC CONTENT */}
         {renderModeContent()}
 
@@ -433,49 +444,50 @@ export default function GamePage() {
 
         {/* Win/Lose Screen */}
         {gameOver && (
-  <div className="mb-6 p-6 bg-gradient-to-br from-purple-900/40 to-pink-900/40 rounded-2xl border border-purple-500/30 text-center backdrop-blur-sm animate-in fade-in zoom-in duration-500">
-    {won ? (
-      <>
-        <div className="text-5xl mb-2">🎉</div>
-        <h2 className="text-2xl font-black text-white mb-1">You Got It!</h2>
-        <p className="text-purple-300 mb-4">Solved in {attempts.length}/{MAX_ATTEMPTS} attempts</p>
-      </>
-    ) : (
-      <>
-        <div className="text-5xl mb-2">💀</div>
-        <h2 className="text-2xl font-black text-white mb-1">Better Luck Tomorrow!</h2>
+          <div className="mb-6 p-6 bg-gradient-to-br from-purple-900/40 to-pink-900/40 rounded-2xl border border-purple-500/30 text-center backdrop-blur-sm animate-in fade-in zoom-in duration-500">
+            {won ? (
+              <>
+                <div className="text-5xl mb-2">🎉</div>
+                <h2 className="text-2xl font-black text-white mb-1">You Got It!</h2>
+                <p className="text-purple-300 mb-4">Solved in {attempts.length}/{MAX_ATTEMPTS} attempts</p>
+              </>
+            ) : (
+              <>
+                <div className="text-5xl mb-2">💀</div>
+                <h2 className="text-2xl font-black text-white mb-1">Better Luck Tomorrow!</h2>
 
-        {/* ✅ CHARACTER REVEAL SECTION */}
-        {revealed && answer && (
-          <div className="mt-6 p-4 bg-black/30 rounded-xl border border-white/10">
-            <p className="text-sm text-gray-400 uppercase tracking-wider mb-2">Today's Mystery Character Was</p>
-            <h3 className="text-3xl font-black text-white mb-2">{answer}</h3>
+                {/* ✅ CHARACTER REVEAL SECTION */}
+                {revealed && answer && (
+                  <div className="mt-6 p-4 bg-black/30 rounded-xl border border-white/10">
+                    <p className="text-sm text-gray-400 uppercase tracking-wider mb-2">Today's Mystery Character Was</p>
+                    <h3 className="text-3xl font-black text-white mb-2">{answer}</h3>
 
-            {/* Character Image */}
-            <div className="my-4 flex justify-center">
-              <img
-                src={`https://image.pollinations.ai/prompt/anime%20manga%20character%20${encodeURIComponent(answer)}%20portrait%20shonen%20style?width=300&height=300&nologo=true&seed=${puzzleId}&model=flux`}
-                alt={answer}
-                className="w-32 h-32 rounded-xl border-2 border-purple-500/50 shadow-lg shadow-purple-500/20 object-cover"
-              />
-            </div>
+                    {/* Character Image */}
+                    <div className="my-4 flex justify-center">
+                      <img
+                        src={`https://image.pollinations.ai/prompt/anime%20manga%20character%20${encodeURIComponent(answer)}%20portrait%20shonen%20style?width=300&height=300&nologo=true&seed=${puzzleId}&model=flux`}
+                        alt={answer}
+                        className="w-32 h-32 rounded-xl border-2 border-purple-500/50 shadow-lg shadow-purple-500/20 object-cover"
+                      />
+                    </div>
 
-            <p className="text-xs text-gray-400">
-              Come back tomorrow for a new challenge!
-            </p>
+                    <p className="text-xs text-gray-400">
+                      Come back tomorrow for a new challenge!
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+
+            <button
+              onClick={() => setShowShareCard(true)}
+              className="mt-4 px-6 py-3 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-bold rounded-lg transition shadow-lg shadow-purple-500/30"
+            >
+              Share Result
+            </button>
           </div>
         )}
-      </>
-    )}
 
-    <button
-  onClick={() => setShowShareCard(true)}
-  className="mt-4 px-6 py-3 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-bold rounded-lg transition shadow-lg shadow-purple-500/30"
->
-   Share Result
-</button>
-  </div>
-)}
         {/* Input Section */}
         {!gameOver && (
           <div className="relative">
@@ -528,7 +540,26 @@ export default function GamePage() {
               const m = Math.floor((diff % 3600000) / 60000);
               return `${h}h ${m}m`;
             })()}
-                 </span>
+          </span>
+        </div>
+
+        {/* ✅ ADSTERRA 320x50 MOBILE BANNER (BOTTOM OF GAME) */}
+        <div className="w-full flex justify-center my-8">
+          <Script id="adsterra-mobile-config-game" strategy="afterInteractive">
+            {`
+              atOptions = {
+                'key' : '5857abbf9515619a371c38758a4e2461',
+                'format' : 'iframe',
+                'height' : 50,
+                'width' : 320,
+                'params' : {}
+              };
+            `}
+          </Script>
+          <Script
+            src="https://www.highrevenueformat.com/5857abbf9515619a371c38758a4e2461/invoke.js"
+            strategy="afterInteractive"
+          />
         </div>
 
         {showShareCard && (

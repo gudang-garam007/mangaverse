@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { Script } from "next/script"; // ✅ ADDED FOR ADS
 import { Sparkles, Share2, Flame, X } from "lucide-react";
 
 interface Choice {
@@ -86,15 +87,26 @@ export default function WhatIfPage() {
     <main className="min-h-screen bg-gradient-to-br from-gray-950 via-purple-950/20 to-gray-950 text-gray-100 p-4 pb-20">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-8 pt-4">
+        <div className="text-center mb-6 pt-4">
           <div className="inline-block">
-            <h1 className="text-5xl font-black bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500 bg-clip-text text-transparent tracking-tight mb-2">
+            <h1 className="text-4xl md:text-5xl font-black bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500 bg-clip-text text-transparent tracking-tight mb-2">
               What-If Engine
             </h1>
             <p className="text-sm text-gray-400">
               Create Interactive Anime Stories & Viral Meme Cards
             </p>
           </div>
+        </div>
+
+        {/* ✅ ADSTERRA NATIVE BANNER (TOP - HIGH VISIBILITY) */}
+        <div className="w-full flex justify-center my-6 min-h-[100px] bg-gray-900/30 rounded-xl border border-gray-800/50 overflow-hidden">
+          <Script
+            src="https://pl31218662.profitableratecpmnetwork.com/fb65e70ebb201c3fe329914b0de99570/invoke.js"
+            strategy="afterInteractive"
+            async
+            data-cfasync="false"
+          />
+          <div id="container-fb65e70ebb201c3fe329914b0de99570"></div>
         </div>
 
         {/* Initial Input Form */}
@@ -294,6 +306,26 @@ export default function WhatIfPage() {
             )}
           </div>
         )}
+
+        {/* ✅ ADSTERRA 320x50 MOBILE BANNER (BOTTOM OF PAGE) */}
+        <div className="w-full flex justify-center my-8">
+          <Script id="adsterra-mobile-config-whatif" strategy="afterInteractive">
+            {`
+              atOptions = {
+                'key' : '5857abbf9515619a371c38758a4e2461',
+                'format' : 'iframe',
+                'height' : 50,
+                'width' : 320,
+                'params' : {}
+              };
+            `}
+          </Script>
+          <Script
+            src="https://www.highrevenueformat.com/5857abbf9515619a371c38758a4e2461/invoke.js"
+            strategy="afterInteractive"
+          />
+        </div>
+
       </div>
 
       {/* Share Card Modal */}
@@ -326,7 +358,7 @@ function WhatIfShareCard({
   const cardRef = useRef<HTMLDivElement>(null);
   const [isCapturing, setIsCapturing] = useState(false);
 
-    const handleShare = async () => {
+  const handleShare = async () => {
     if (!cardRef.current) return;
     setIsCapturing(true);
 
@@ -337,14 +369,12 @@ function WhatIfShareCard({
         backgroundColor: "#0a0a0f",
       });
 
-      // ✅ FIXED: Pehle file bana le taaki canShare check kar sakein
       const file = new File(
         [await (await fetch(dataUrl)).blob()],
         `whatif-${storyId}.png`,
         { type: "image/png" }
       );
 
-      // ✅ FIXED: navigator.canShare ko function ki tarah call kiya gaya hai
       if (navigator.share && navigator.canShare({ files: [file] })) {
         await navigator.share({
           title: scenario.scenario_title,
@@ -352,7 +382,6 @@ function WhatIfShareCard({
           files: [file],
         });
       } else {
-        // Fallback to download
         const link = document.createElement("a");
         link.download = `whatif-${storyId}.png`;
         link.href = dataUrl;
@@ -364,17 +393,16 @@ function WhatIfShareCard({
       setIsCapturing(false);
     }
   };
+
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
       <div className="relative w-full max-w-md">
-
         {/* THE CARD */}
         <div
           ref={cardRef}
           className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-purple-900/60 via-gray-900 to-pink-900/60 border border-white/10 shadow-2xl p-6"
           style={{ width: "400px", minHeight: "550px" }}
         >
-          {/* ✅ FIXED CLOSE BUTTON: Ab card ke andar hai */}
           <button
             onClick={onClose}
             className="absolute top-3 right-3 p-2 bg-black/80 hover:bg-red-600 rounded-full border border-white/20 text-white transition-all shadow-lg z-50"
@@ -430,7 +458,7 @@ function WhatIfShareCard({
             </div>
             <div className="w-24 h-24 mx-auto bg-white rounded-lg p-1 shadow-lg">
               <img
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://mangaverse.com/whatif&color=0a0a0f`}
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://manga-ta.vercel.app/whatif&color=0a0a0f`}
                 alt="QR"
                 className="w-full h-full rounded"
               />
@@ -467,7 +495,7 @@ function WhatIfShareCard({
 }
 
 // ==========================================
-// IMAGE COMPONENT WITH FALLBACK (MOVED OUTSIDE)
+// IMAGE COMPONENT WITH FALLBACK
 // ==========================================
 function WhatIfImage({ scenario, storyId }: { scenario: WhatIfScenario; storyId: string }) {
   const [imageError, setImageError] = useState(false);

@@ -53,16 +53,16 @@ export default function ChatPage() {
             required
           />
           <button
-  type="submit"
-  disabled={loading}
-  className={`w-full font-bold py-3 rounded-lg transition ${
-    loading
-      ? "bg-gray-600 cursor-not-allowed opacity-50 text-gray-300"
-      : "bg-blue-600 hover:bg-blue-700 text-white"
-  }`}
->
-  {loading ? "💬 Chatting... (Please wait)" : "Send Message"}
-</button>
+            type="submit"
+            disabled={loading}
+            className={`w-full font-bold py-3 rounded-lg transition ${
+              loading
+                ? "bg-gray-600 cursor-not-allowed opacity-50 text-gray-300"
+                : "bg-blue-600 hover:bg-blue-700 text-white"
+            }`}
+          >
+            {loading ? "💬 Chatting... (Please wait)" : "Send Message"}
+          </button>
         </form>
         {reply && (
           <div className="mt-6 bg-gray-900 border border-gray-800 rounded-lg p-6">
