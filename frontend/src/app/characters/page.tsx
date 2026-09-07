@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Search, Zap, Brain, Star, Shield, CheckCircle, Loader2, X, Share2, Download, User, Users } from "lucide-react";
+import { Search, CheckCircle, Loader2, X, Share2, Download, User } from "lucide-react";
 
 interface Character {
   id: string;
@@ -9,14 +9,10 @@ interface Character {
   universe: string;
   gender: string;
   age: string;
+  description: string;
+  personality_traits: string[];
   strengths: string[];
   weaknesses: string[];
-  abilities: string[];
-  power_level: number;
-  speed: number;
-  hax: number;
-  battle_iq: number;
-  description: string;
 }
 
 export default function CharactersPage() {
@@ -50,7 +46,7 @@ export default function CharactersPage() {
 
       let chars = data.characters || [];
 
-      // Gender filter client-side (API mein abhi nahi hai)
+      // Gender filter client-side
       if (selectedGender) {
         chars = chars.filter((c: Character) => c.gender?.toLowerCase() === selectedGender.toLowerCase());
       }
@@ -69,15 +65,8 @@ export default function CharactersPage() {
     }
   };
 
-  const getPowerColor = (level: number) => {
-    if (level >= 900) return "text-red-400";
-    if (level >= 750) return "text-orange-400";
-    if (level >= 600) return "text-yellow-400";
-    return "text-green-400";
-  };
-
   const handleShare = async (char: Character) => {
-    const shareText = `🎌 ${char.name}\n Power: ${char.power_level}\n ${char.universe}\n Strengths: ${char.strengths.join(', ')}\n\nExplore on MangaVerse!`;
+    const shareText = `🎌 ${char.name}\n${char.universe}\n${char.gender} • ${char.age}\n\nPersonality: ${char.personality_traits.join(', ')}\n\n${char.description}\n\nExplore on MangaVerse!`;
 
     if (navigator.share) {
       try {
@@ -102,23 +91,37 @@ export default function CharactersPage() {
     const ctx = canvas.getContext('2d');
 
     if (ctx) {
-      // Background
-      ctx.fillStyle = '#1a1a2e';
+      // Background gradient
+      const gradient = ctx.createLinearGradient(0, 0, 0, 600);
+      gradient.addColorStop(0, '#1a1a2e');
+      gradient.addColorStop(1, '#16213e');
+      ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, 400, 600);
 
       // Title
       ctx.fillStyle = '#a855f7';
-      ctx.font = 'bold 24px Arial';
-      ctx.fillText(char.name, 20, 40);
+      ctx.font = 'bold 28px Arial';
+      ctx.fillText(char.name, 20, 50);
 
-      // Stats
+      // Universe
+      ctx.fillStyle = '#c084fc';
+      ctx.font = '18px Arial';
+      ctx.fillText(char.universe, 20, 85);
+
+      // Info
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '14px Arial';
+      ctx.fillText(`${char.gender} • ${char.age}`, 20, 110);
+
+      // Personality
       ctx.fillStyle = '#ffffff';
-      ctx.font = '16px Arial';
-      ctx.fillText(` Power: ${char.power_level}`, 20, 80);
-      ctx.fillText(` ${char.universe}`, 20, 105);
-      ctx.fillText(`️ Speed: ${char.speed}`, 20, 130);
-      ctx.fillText(`🧠 IQ: ${char.battle_iq}`, 20, 155);
-      ctx.fillText(`✨ HAX: ${char.hax}`, 20, 180);
+      ctx.font = 'bold 16px Arial';
+      ctx.fillText('Personality:', 20, 150);
+      ctx.font = '14px Arial';
+      ctx.fillStyle = '#cbd5e1';
+      char.personality_traits.slice(0, 4).forEach((trait, i) => {
+        ctx.fillText(`• ${trait}`, 20, 175 + (i * 25));
+      });
 
       // Download
       const link = document.createElement('a');
@@ -217,41 +220,18 @@ export default function CharactersPage() {
                         (e.target as HTMLImageElement).src = `https://api.dicebear.com/9.0/bottts-neutral/svg?seed=${encodeURIComponent(char.name)}&backgroundColor=1a1a2e&size=400`;
                       }}
                     />
-                    <div className="absolute top-2 right-2 px-2 py-1 bg-black/80 backdrop-blur-sm rounded-lg border border-white/10">
-                      <span className={`text-sm font-black ${getPowerColor(char.power_level)}`}>
-                        ⚡ {char.power_level}
-                      </span>
-                    </div>
                   </div>
 
                   <div className="p-4">
                     <h3 className="text-lg font-bold text-white mb-1 truncate" title={char.name}>{char.name}</h3>
-                    <p className="text-xs text-purple-400 font-semibold mb-3 uppercase tracking-wider">{char.universe}</p>
+                    <p className="text-xs text-purple-400 font-semibold mb-2">{char.universe}</p>
+                    <p className="text-xs text-gray-500 mb-3">{char.gender} • {char.age}</p>
 
-                    <div className="grid grid-cols-2 gap-2 mb-3 bg-gray-950/50 p-2 rounded-lg">
-                      <div className="flex items-center gap-1.5 text-xs text-gray-300">
-                        <Zap className="w-3.5 h-3.5 text-yellow-400" />
-                        <span>{char.speed}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 text-xs text-gray-300">
-                        <Brain className="w-3.5 h-3.5 text-blue-400" />
-                        <span>{char.battle_iq}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 text-xs text-gray-300">
-                        <Star className="w-3.5 h-3.5 text-purple-400" />
-                        <span>{char.hax}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 text-xs text-gray-300">
-                        <Shield className="w-3.5 h-3.5 text-green-400" />
-                        <span>{char.power_level}</span>
-                      </div>
-                    </div>
-
-                    {char.strengths?.length > 0 && (
+                    {char.personality_traits?.length > 0 && (
                       <div className="flex flex-wrap gap-1">
-                        {char.strengths.slice(0, 2).map((s, i) => (
-                          <span key={i} className="px-2 py-0.5 bg-green-900/40 text-green-400 text-[10px] font-bold rounded border border-green-800">
-                            {s}
+                        {char.personality_traits.slice(0, 2).map((trait, i) => (
+                          <span key={i} className="px-2 py-0.5 bg-purple-900/40 text-purple-400 text-[10px] rounded border border-purple-800">
+                            {trait}
                           </span>
                         ))}
                       </div>
@@ -303,63 +283,46 @@ export default function CharactersPage() {
                   <h2 className="text-3xl font-black text-white mb-2">{selectedCharacter.name}</h2>
                   <p className="text-purple-400 font-semibold mb-4">{selectedCharacter.universe}</p>
 
-                  <div className="grid grid-cols-2 gap-3 mb-6">
-                    <div className="bg-gray-800 p-3 rounded-lg">
-                      <div className="flex items-center gap-2 text-yellow-400 mb-1">
-                        <Zap className="w-4 h-4" />
-                        <span className="text-xs uppercase">Speed</span>
-                      </div>
-                      <div className="text-2xl font-bold">{selectedCharacter.speed}</div>
+                  <div className="flex gap-4 mb-6 text-sm">
+                    <div className="flex items-center gap-2 text-gray-400">
+                      <User className="w-4 h-4" />
+                      <span>{selectedCharacter.gender}</span>
                     </div>
-                    <div className="bg-gray-800 p-3 rounded-lg">
-                      <div className="flex items-center gap-2 text-blue-400 mb-1">
-                        <Brain className="w-4 h-4" />
-                        <span className="text-xs uppercase">Battle IQ</span>
-                      </div>
-                      <div className="text-2xl font-bold">{selectedCharacter.battle_iq}</div>
-                    </div>
-                    <div className="bg-gray-800 p-3 rounded-lg">
-                      <div className="flex items-center gap-2 text-purple-400 mb-1">
-                        <Star className="w-4 h-4" />
-                        <span className="text-xs uppercase">HAX</span>
-                      </div>
-                      <div className="text-2xl font-bold">{selectedCharacter.hax}</div>
-                    </div>
-                    <div className="bg-gray-800 p-3 rounded-lg">
-                      <div className="flex items-center gap-2 text-green-400 mb-1">
-                        <Shield className="w-4 h-4" />
-                        <span className="text-xs uppercase">Power</span>
-                      </div>
-                      <div className={`text-2xl font-bold ${getPowerColor(selectedCharacter.power_level)}`}>
-                        {selectedCharacter.power_level}
-                      </div>
-                    </div>
+                    <div className="text-gray-600">•</div>
+                    <div className="text-gray-400">{selectedCharacter.age}</div>
                   </div>
 
-                  <div className="space-y-3 mb-6">
-                    <div>
-                      <h3 className="text-sm font-bold text-gray-400 mb-2">Gender</h3>
-                      <p className="text-white">{selectedCharacter.gender || 'Unknown'}</p>
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-bold text-gray-400 mb-2">Age</h3>
-                      <p className="text-white">{selectedCharacter.age || 'Unknown'}</p>
-                    </div>
-                  </div>
-
-                  {selectedCharacter.description && (
+                  {/* Personality Traits */}
+                  {selectedCharacter.personality_traits?.length > 0 && (
                     <div className="mb-6">
-                      <h3 className="text-sm font-bold text-gray-400 mb-2">Description</h3>
-                      <p className="text-gray-300 text-sm leading-relaxed">{selectedCharacter.description}</p>
+                      <h3 className="text-sm font-bold text-gray-400 mb-3">Personality Traits</h3>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedCharacter.personality_traits.map((trait, i) => (
+                          <span key={i} className="px-3 py-1.5 bg-purple-900/40 text-purple-300 text-sm rounded-lg border border-purple-800">
+                            {trait}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   )}
 
+                  {/* Description */}
+                  {selectedCharacter.description && (
+                    <div className="mb-6">
+                      <h3 className="text-sm font-bold text-gray-400 mb-2">About</h3>
+                      <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-line">
+                        {selectedCharacter.description}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Strengths */}
                   {selectedCharacter.strengths?.length > 0 && (
                     <div className="mb-6">
-                      <h3 className="text-sm font-bold text-gray-400 mb-2">Strengths</h3>
+                      <h3 className="text-sm font-bold text-gray-400 mb-2">Abilities & Strengths</h3>
                       <div className="flex flex-wrap gap-2">
                         {selectedCharacter.strengths.map((s, i) => (
-                          <span key={i} className="px-3 py-1 bg-green-900/40 text-green-400 text-xs font-bold rounded border border-green-800">
+                          <span key={i} className="px-3 py-1.5 bg-green-900/40 text-green-400 text-sm rounded-lg border border-green-800">
                             {s}
                           </span>
                         ))}
@@ -367,12 +330,13 @@ export default function CharactersPage() {
                     </div>
                   )}
 
+                  {/* Weaknesses */}
                   {selectedCharacter.weaknesses?.length > 0 && (
                     <div className="mb-6">
                       <h3 className="text-sm font-bold text-gray-400 mb-2">Weaknesses</h3>
                       <div className="flex flex-wrap gap-2">
                         {selectedCharacter.weaknesses.map((w, i) => (
-                          <span key={i} className="px-3 py-1 bg-red-900/40 text-red-400 text-xs font-bold rounded border border-red-800">
+                          <span key={i} className="px-3 py-1.5 bg-red-900/40 text-red-400 text-sm rounded-lg border border-red-800">
                             {w}
                           </span>
                         ))}
@@ -381,7 +345,7 @@ export default function CharactersPage() {
                   )}
 
                   {/* Action Buttons */}
-                  <div className="flex gap-3">
+                  <div className="flex gap-3 pt-4 border-t border-gray-800">
                     <button
                       onClick={() => handleShare(selectedCharacter)}
                       className="flex-1 py-3 bg-purple-600 hover:bg-purple-700 rounded-xl font-bold transition flex items-center justify-center gap-2"
@@ -400,6 +364,12 @@ export default function CharactersPage() {
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {!loading && characters.length === 0 && (
+          <div className="text-center py-20 text-gray-500">
+            <p className="text-xl">No characters found. Try a different search.</p>
           </div>
         )}
       </div>
