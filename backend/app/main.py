@@ -28,10 +28,7 @@ async def lifespan(app: FastAPI):
     try:
         await neo4j_db.connect()
         logger.info("✅ Neo4j connected")
-        # 🚀 NEW: Start preloading 8300+ characters into RAM cache in the background
-        # asyncio.create_task ensures this doesn't block the server from starting
-        asyncio.create_task(character_cache.preload_all_data())
-        logger.info("⏳ Background cache preloading started (will complete in ~30-60s)..")
+
 
     except Exception as e:
         logger.error(f"❌ Neo4j failed: {e}")

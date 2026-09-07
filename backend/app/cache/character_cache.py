@@ -1,107 +1,95 @@
 from cachetools import TTLCache
 from loguru import logger
-from typing import List, Dict, Optional
+from typing import List, Dict
 from app.db.neo4j import neo4j_db
-import asyncio
 
 
 class CharacterCache:
     def __init__(self):
-        # Cache with 1 hour TTL (Time To Live)
-        self.characters = TTLCache(maxsize=10000, ttl=3600)
-        self.weapons = TTLCache(maxsize=200, ttl=3600)
-        self.is_loading = False
+        # Cache sirf 500 recent searches rakhega (Memory bachane ke liye)
+        # TTL = 2 hours (7200 seconds)
+        self.search_cache = TTLCache(maxsize=500, ttl=7200)
+        self.universe_cache = TTLCache(maxsize=50, ttl=7200)
 
-    async def preload_all_data(self):
-        """Pre-load all data into cache on server startup"""
-        if self.is_loading:
-            return
+    async def get_or_fetch_characters(self, search_query: str, limit: int = 50) -> List[Dict]:
+        """Lazy load: Pehle cache check karo, nahi mila toh Neo4j se lao aur cache kar lo"""
+        cache_key = f"search_{search_query.lower()}_{limit}"
 
-        self.is_loading = True
-        logger.info("🚀 Starting data preload into cache...")
+        # 1. Check Cache
+        if cache_key in self.search_cache:
+            logger.info(f"⚡ Cache HIT for search: {search_query}")
+            return self.search_cache[cache_key]
+
+        # 2. Cache MISS: Neo4j se fetch karo
+        logger.info(f"🔄 Cache MISS. Fetching from Neo4j for: {search_query}")
+        query = """
+        MATCH (c:Character)-[:BELONGS_TO]->(u:Universe)
+        WHERE toLower(c.name) CONTAINS toLower($q)
+        RETURN c.id as id, c.name as name, c.description as description,
+               c.gender as gender, c.age as age, u.title as universe
+        LIMIT $limit
+        """
 
         try:
-            # 1. Preload all characters
-            query = """
-            MATCH (c:Character)-[:BELONGS_TO]->(u:Universe)
-            RETURN c.id as id, c.name as name, c.description as description,
-                   c.gender as gender, c.age as age, u.title as universe
-            LIMIT 10000
-            """
+            records = await neo4j_db.execute_query(query, {"q": search_query, "limit": limit})
 
-            records = await neo4j_db.execute_query(query)
-
+            results = []
             for record in records:
-                char_id = record['id']
-                self.characters[char_id] = {
-                    'id': char_id,
+                results.append({
+                    'id': record['id'],
                     'name': record['name'],
                     'description': record['description'] or '',
                     'gender': record['gender'] or 'Unknown',
                     'age': record['age'] or 'Unknown',
                     'universe': record['universe'] or 'Unknown'
-                }
+                })
 
-            logger.info(f"✅ Cached {len(self.characters)} characters")
-
-            # 2. Preload all weapons (if you have weapons in Neo4j)
-            weapons_query = """
-            MATCH (w:Weapon)
-            RETURN w.id as id, w.name as name, w.owner as owner, w.anime as anime,
-                   w.type as type, w.power as power, w.speed as speed, w.hax as hax,
-                   w.ability as ability, w.weakness as weakness, w.lore as lore
-            LIMIT 200
-            """
-
-            weapons_records = await neo4j_db.execute_query(weapons_query)
-
-            for record in weapons_records:
-                weapon_id = record['id']
-                self.weapons[weapon_id] = record
-
-            logger.info(f"✅ Cached {len(self.weapons)} weapons")
+            # 3. Neo4j se aaya hua data cache mein save kar lo
+            self.search_cache[cache_key] = results
+            return results
 
         except Exception as e:
-            logger.error(f"❌ Cache preload failed: {e}")
-        finally:
-            self.is_loading = False
+            logger.error(f"❌ Neo4j fetch failed: {e}")
+            return []
 
-    def get_characters(self, search_query: str = "", limit: int = 50) -> List[Dict]:
-        """Get characters from cache with search"""
-        results = []
-        search_lower = search_query.lower()
+    async def get_or_fetch_by_universe(self, universe: str, limit: int = 50) -> List[Dict]:
+        """Lazy load for universe"""
+        cache_key = f"universe_{universe.lower()}_{limit}"
 
-        for char_id, char_data in self.characters.items():
-            if search_lower in char_data['name'].lower():
-                results.append(char_data)
-                if len(results) >= limit:
-                    break
+        if cache_key in self.universe_cache:
+            logger.info(f"⚡ Cache HIT for universe: {universe}")
+            return self.universe_cache[cache_key]
 
-        return results
+        logger.info(f"🔄 Cache MISS. Fetching from Neo4j for universe: {universe}")
+        query = """
+        MATCH (c:Character)-[:BELONGS_TO]->(u:Universe)
+        WHERE toLower(u.title) CONTAINS toLower($universe)
+        RETURN c.id as id, c.name as name, c.description as description,
+               c.gender as gender, c.age as age, u.title as universe
+        LIMIT $limit
+        """
 
-    def get_characters_by_universe(self, universe: str, limit: int = 50) -> List[Dict]:
-        """Get characters by universe from cache"""
-        results = []
-        universe_lower = universe.lower()
+        try:
+            records = await neo4j_db.execute_query(query, {"universe": universe, "limit": limit})
 
-        for char_id, char_data in self.characters.items():
-            if universe_lower in char_data['universe'].lower():
-                results.append(char_data)
-                if len(results) >= limit:
-                    break
+            results = []
+            for record in records:
+                results.append({
+                    'id': record['id'],
+                    'name': record['name'],
+                    'description': record['description'] or '',
+                    'gender': record['gender'] or 'Unknown',
+                    'age': record['age'] or 'Unknown',
+                    'universe': record['universe'] or 'Unknown'
+                })
 
-        return results
+            self.universe_cache[cache_key] = results
+            return results
 
-    def get_all_weapons(self) -> List[Dict]:
-        """Get all weapons from cache"""
-        return list(self.weapons.values())
-
-    def get_character_count(self) -> int:
-        return len(self.characters)
-
-    def get_weapon_count(self) -> int:
-        return len(self.weapons)
+        except Exception as e:
+            logger.error(f"❌ Neo4j fetch failed: {e}")
+            return []
 
 
-# Global cache instance
+# Global instance
 character_cache = CharacterCache()

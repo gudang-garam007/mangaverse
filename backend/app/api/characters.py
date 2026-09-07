@@ -7,19 +7,10 @@ router = APIRouter(prefix="/api/characters", tags=["Characters"])
 
 
 def extract_stats_from_description(desc: str):
-    """Extract stats from description"""
     if not desc:
-        return {
-            "strengths": [],
-            "weaknesses": [],
-            "power_level": 500,
-            "speed": 50,
-            "hax": 50,
-            "battle_iq": 60
-        }
+        return {"strengths": [], "weaknesses": [], "power_level": 500, "speed": 50, "hax": 50, "battle_iq": 60}
 
     desc_lower = desc.lower()
-
     strength_kws = ["strong", "power", "master", "expert", "enhanced", "superhuman", "immense", "haki", "chakra", "ki",
                     "god", "legendary"]
     weakness_kws = ["weakness", "weak", "vulnerable", "limitation", "drawback", "cannot", "afraid", "fear", "sea water",
@@ -41,31 +32,18 @@ def extract_stats_from_description(desc: str):
     battle_iq = 90 if any(w in desc_lower for w in ['strategist', 'tactical', 'genius', 'brilliant']) else (
         30 if 'reckless' in desc_lower else 60)
 
-    return {
-        "strengths": strengths,
-        "weaknesses": weaknesses,
-        "power_level": power_level,
-        "speed": speed,
-        "hax": hax,
-        "battle_iq": battle_iq
-    }
+    return {"strengths": strengths, "weaknesses": weaknesses, "power_level": power_level, "speed": speed, "hax": hax,
+            "battle_iq": battle_iq}
 
 
 @router.get("/search")
-async def search_characters(
-        q: str = Query(..., min_length=1),
-        limit: int = Query(50, le=200)
-):
-    """Search characters from CACHE (instant response)"""
+async def search_characters(q: str = Query(..., min_length=1), limit: int = Query(50, le=200)):
+    # Lazy load from cache or Neo4j
+    characters = await character_cache.get_or_fetch_characters(q, limit)
 
-    # Get from cache (milliseconds)
-    characters = character_cache.get_characters(q, limit)
-
-    # Enrich with stats
     enriched = []
     for char in characters:
         stats = extract_stats_from_description(char.get('description', ''))
-
         enriched.append({
             "id": char['id'],
             "name": char['name'],
@@ -77,26 +55,16 @@ async def search_characters(
             **stats
         })
 
-    return {
-        "characters": enriched,
-        "total": len(enriched),
-        "cached": True  # Tell frontend this came from cache
-    }
+    return {"characters": enriched, "total": len(enriched), "cached": True}
 
 
 @router.get("/universe/{universe_name}")
-async def get_characters_by_universe(
-        universe_name: str,
-        limit: int = Query(50, le=200)
-):
-    """Get characters by universe from CACHE"""
-
-    characters = character_cache.get_characters_by_universe(universe_name, limit)
+async def get_characters_by_universe(universe_name: str, limit: int = Query(50, le=200)):
+    characters = await character_cache.get_or_fetch_by_universe(universe_name, limit)
 
     enriched = []
     for char in characters:
         stats = extract_stats_from_description(char.get('description', ''))
-
         enriched.append({
             "id": char['id'],
             "name": char['name'],
@@ -107,19 +75,4 @@ async def get_characters_by_universe(
             **stats
         })
 
-    return {
-        "characters": enriched,
-        "universe": universe_name,
-        "total": len(enriched),
-        "cached": True
-    }
-
-
-@router.get("/stats")
-async def get_cache_stats():
-    """Get cache statistics"""
-    return {
-        "characters_cached": character_cache.get_character_count(),
-        "weapons_cached": character_cache.get_weapon_count(),
-        "is_loading": character_cache.is_loading
-    }
+    return {"characters": enriched, "universe": universe_name, "total": len(enriched), "cached": True}
