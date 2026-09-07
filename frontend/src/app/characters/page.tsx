@@ -152,7 +152,8 @@ export default function CharactersPage() {
                       loading="lazy"
                       onError={(e) => {
                         // ✅ FALLBACK: Agar image fail ho, toh mystery silhouette dikha do
-                        (e.target as HTMLImageElement).src = "https://image.pollinations.ai/prompt/mysterious%20anime%20character%20silhouette%20dark%20background?width=400&height=600&nologo=true";
+                        const fallbackUrl = `https://api.dicebear.com/9.0/bottts-neutral/svg?seed=${encodeURIComponent(char.name)}&backgroundColor=1a1a2e&size=400`;
+    (e.target as HTMLImageElement).src = fallbackUrl;
                       }}
                     />
                     <div className="absolute top-2 right-2 px-2 py-1 bg-black/80 backdrop-blur-sm rounded-lg border border-white/10">

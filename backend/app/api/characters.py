@@ -1,9 +1,30 @@
+import asyncio
+from urllib.parse import quote as encodeURIComponent
 from fastapi import APIRouter, Query
 from typing import List, Dict
 from app.cache.character_cache import character_cache
 from loguru import logger
 
 router = APIRouter(prefix="/api/characters", tags=["Characters"])
+
+# 🚨 EMERGENCY FALLBACK DATA
+FALLBACK_CHARACTERS = [
+    {"id": "fb_1", "name": "Monkey D. Luffy", "universe": "One Piece", "gender": "Male", "age": "19",
+     "description": "Captain with rubber powers and immense willpower.", "strengths": ["Haki", "Rubber Body"],
+     "weaknesses": ["Sea Water"], "power_level": 950, "speed": 90, "hax": 85, "battle_iq": 70},
+    {"id": "fb_2", "name": "Naruto Uzumaki", "universe": "Naruto", "gender": "Male", "age": "17",
+     "description": "Seventh Hokage with massive chakra reserves.", "strengths": ["Rasengan", "Sage Mode"],
+     "weaknesses": ["Reckless"], "power_level": 900, "speed": 95, "hax": 80, "battle_iq": 75},
+    {"id": "fb_3", "name": "Son Goku", "universe": "Dragon Ball", "gender": "Male", "age": "Unknown",
+     "description": "Saiyan warrior and protector of Earth.", "strengths": ["Ki", "Super Saiyan"],
+     "weaknesses": ["Naive"], "power_level": 1000, "speed": 100, "hax": 90, "battle_iq": 80},
+    {"id": "fb_4", "name": "Satoru Gojo", "universe": "Jujutsu Kaisen", "gender": "Male", "age": "28",
+     "description": "The strongest Jujutsu Sorcerer alive.", "strengths": ["Limitless", "Six Eyes"],
+     "weaknesses": ["Sealing"], "power_level": 980, "speed": 95, "hax": 100, "battle_iq": 90},
+    {"id": "fb_5", "name": "Ichigo Kurosaki", "universe": "Bleach", "gender": "Male", "age": "15",
+     "description": "Substitute Soul Reaper with immense spiritual pressure.", "strengths": ["Zangetsu", "Bankai"],
+     "weaknesses": ["Emotional"], "power_level": 920, "speed": 92, "hax": 85, "battle_iq": 78},
+]
 
 
 def extract_stats_from_description(desc: str):
@@ -37,17 +58,47 @@ def extract_stats_from_description(desc: str):
 
 
 @router.get("/search")
-async def search_characters(q: str = Query(..., min_length=1), limit: int = Query(50, le=200)):
-    # Lazy load from cache or Neo4j
-    characters = await character_cache.get_or_fetch_characters(q, limit)
+async def search_characters(
+        q: str = Query("a", min_length=1),
+        limit: int = Query(50, le=200),
+        offset: int = Query(0, ge=0)
+):
+    try:
+        characters = await asyncio.wait_for(
+            character_cache.get_or_fetch_characters(q, limit, offset),
+            timeout=5.0
+        )
+
+        # Fallback agar Neo4j empty return kare
+        if not characters:
+            logger.warning("⚠️ Neo4j returned empty. Serving fallback data.")
+            characters = [{"id": c["id"], "name": c["name"], "description": c["description"], "gender": c["gender"],
+                           "age": c["age"], "universe": c["universe"]} for c in FALLBACK_CHARACTERS]
+
+    except asyncio.TimeoutError:
+        logger.error("❌ Neo4j Timeout! Serving fallback data immediately.")
+        characters = [
+            {"id": c["id"], "name": c["name"], "description": c["description"], "gender": c["gender"], "age": c["age"],
+             "universe": c["universe"]} for c in FALLBACK_CHARACTERS]
+    except Exception as e:
+        logger.error(f"❌ Neo4j Error: {e}. Serving fallback data.")
+        characters = [
+            {"id": c["id"], "name": c["name"], "description": c["description"], "gender": c["gender"], "age": c["age"],
+             "universe": c["universe"]} for c in FALLBACK_CHARACTERS]
 
     enriched = []
     for char in characters:
         stats = extract_stats_from_description(char.get('description', ''))
+
+        # ✅ SAFE IMAGE URL: Special characters ko properly encode karo
+        name_clean = char['name'].replace("'", "").replace('"', '').strip()
+        encoded_name = encodeURIComponent(name_clean)
+        image_url = f"https://image.pollinations.ai/prompt/anime%20manga%20character%20{encoded_name}%20portrait%20shonen%20style%20high%20quality?width=400&height=600&nologo=true&seed={abs(hash(char['id'])) % 10000}"
+
         enriched.append({
             "id": char['id'],
             "name": char['name'],
-            "image_url": f"https://image.pollinations.ai/prompt/{char['name']}%20anime%20manga%20character%20portrait?width=400&height=600&nologo=true&seed={char['id']}",
+            "image_url": image_url,
             "universe": char['universe'],
             "gender": char['gender'],
             "age": char['age'],
@@ -59,16 +110,37 @@ async def search_characters(q: str = Query(..., min_length=1), limit: int = Quer
 
 
 @router.get("/universe/{universe_name}")
-async def get_characters_by_universe(universe_name: str, limit: int = Query(50, le=200)):
-    characters = await character_cache.get_or_fetch_by_universe(universe_name, limit)
+async def get_characters_by_universe(
+        universe_name: str,
+        limit: int = Query(50, le=200),
+        offset: int = Query(0, ge=0)  # ✅ Offset add kiya
+):
+    try:
+        characters = await asyncio.wait_for(
+            character_cache.get_or_fetch_by_universe(universe_name, limit, offset),
+            timeout=5.0
+        )
+        if not characters:
+            characters = [{"id": c["id"], "name": c["name"], "description": c["description"], "gender": c["gender"],
+                           "age": c["age"], "universe": c["universe"]} for c in FALLBACK_CHARACTERS]
+    except Exception as e:
+        logger.error(f"❌ Universe Fetch Error: {e}. Serving fallback.")
+        characters = [
+            {"id": c["id"], "name": c["name"], "description": c["description"], "gender": c["gender"], "age": c["age"],
+             "universe": c["universe"]} for c in FALLBACK_CHARACTERS]
 
     enriched = []
     for char in characters:
         stats = extract_stats_from_description(char.get('description', ''))
+
+        name_clean = char['name'].replace("'", "").replace('"', '').strip()
+        encoded_name = encodeURIComponent(name_clean)
+        image_url = f"https://image.pollinations.ai/prompt/anime%20manga%20character%20{encoded_name}%20portrait%20shonen%20style%20high%20quality?width=400&height=600&nologo=true&seed={abs(hash(char['id'])) % 10000}"
+
         enriched.append({
             "id": char['id'],
             "name": char['name'],
-            "image_url": f"https://image.pollinations.ai/prompt/{char['name']}%20anime%20manga%20character?width=400&height=600&nologo=true&seed={char['id']}",
+            "image_url": image_url,
             "universe": char['universe'],
             "gender": char['gender'],
             "age": char['age'],
