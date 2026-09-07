@@ -4,9 +4,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 from loguru import logger
+from app.cache.character_cache import character_cache
 import sys
 import os
-
+import asyncio
 # Ensure the app directory is in the Python path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -21,12 +22,17 @@ from app.api import news
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("🚀 Starting MangaVerse Oracle...")
+    logger.info("🚀 Starting MangaVerse...")
 
     # Connect Neo4j
     try:
         await neo4j_db.connect()
         logger.info("✅ Neo4j connected")
+        # 🚀 NEW: Start preloading 8300+ characters into RAM cache in the background
+        # asyncio.create_task ensures this doesn't block the server from starting
+        asyncio.create_task(character_cache.preload_all_data())
+        logger.info("⏳ Background cache preloading started (will complete in ~30-60s)..")
+
     except Exception as e:
         logger.error(f"❌ Neo4j failed: {e}")
 
