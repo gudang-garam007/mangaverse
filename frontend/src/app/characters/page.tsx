@@ -52,7 +52,7 @@ export default function CharactersPage() {
 
       // Gender filter client-side (API mein abhi nahi hai)
       if (selectedGender) {
-        chars = chars.filter(c => c.gender?.toLowerCase() === selectedGender.toLowerCase());
+        chars = chars.filter((c: Character) => c.gender?.toLowerCase() === selectedGender.toLowerCase());
       }
 
       if (isInitial) setCharacters(chars);
