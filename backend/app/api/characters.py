@@ -62,10 +62,8 @@ def extract_personality_traits(desc: str) -> Dict:
     }
 
     # Strength & Weakness keywords
-    strength_keywords = ["power", "ability", "skill", "master", "expert", "enhanced", "strong", "haki", "chakra", "ki",
-                         "magic", "stamina"]
-    weakness_keywords = ["weakness", "weak", "cannot", "unable", "afraid", "fear", "limitation", "vulnerable",
-                         "drawback"]
+    strength_keywords = ["power", "ability", "skill", "master", "expert", "enhanced", "strong", "haki", "chakra", "ki", "magic", "stamina"]
+    weakness_keywords = ["weakness", "weak", "cannot", "unable", "afraid", "fear", "limitation", "vulnerable", "drawback"]
 
     # Extract unique traits
     traits = [trait for trait, keywords in trait_keywords.items() if any(kw in desc_lower for kw in keywords)]
@@ -109,16 +107,19 @@ async def search_characters(
         clean_desc = clean_description(desc)
         personality = extract_personality_traits(desc)
 
-        # Safe Image URL generation
-        name_clean = char['name'].replace("'", "").replace('"', '').strip()
-        encoded_name = encodeURIComponent(name_clean)
-
-        # High-quality prompt for Pollinations
-        image_url = (
-            f"https://image.pollinations.ai/prompt/"
-            f"anime%20manga%20character%20{encoded_name}%20portrait%20high%20quality%20detailed%20art?"
-            f"width=400&height=600&nologo=true&seed={abs(hash(char['id'])) % 10000}"
-        )
+        # ✅ CRITICAL FIX: Use Database Image if it exists and is valid
+        db_image = char.get('image_url', '')
+        if db_image and not any(bad in db_image.lower() for bad in ['pollinations', 'dicebear', 'placeholder', 'null', 'none']):
+            image_url = db_image  # Use the real Tenrai/MyAnimeList image!
+        else:
+            # Fallback to Pollinations ONLY if DB image is missing or invalid
+            name_clean = char['name'].replace("'", "").replace('"', '').strip()
+            encoded_name = encodeURIComponent(name_clean)
+            image_url = (
+                f"https://image.pollinations.ai/prompt/"
+                f"anime%20manga%20character%20{encoded_name}%20portrait%20high%20quality%20detailed%20art?"
+                f"width=400&height=600&nologo=true&seed={abs(hash(char['id'])) % 10000}"
+            )
 
         enriched.append({
             "id": str(char['id']),
@@ -161,15 +162,19 @@ async def get_characters_by_universe(
         clean_desc = clean_description(desc)
         personality = extract_personality_traits(desc)
 
-        # Safe Image URL generation
-        name_clean = char['name'].replace("'", "").replace('"', '').strip()
-        encoded_name = encodeURIComponent(name_clean)
-
-        image_url = (
-            f"https://image.pollinations.ai/prompt/"
-            f"anime%20manga%20character%20{encoded_name}%20portrait%20high%20quality?"
-            f"width=400&height=600&nologo=true&seed={abs(hash(char['id'])) % 10000}"
-        )
+        # ✅ CRITICAL FIX: Use Database Image if it exists and is valid
+        db_image = char.get('image_url', '')
+        if db_image and not any(bad in db_image.lower() for bad in ['pollinations', 'dicebear', 'placeholder', 'null', 'none']):
+            image_url = db_image  # Use the real Tenrai/MyAnimeList image!
+        else:
+            # Fallback to Pollinations ONLY if DB image is missing or invalid
+            name_clean = char['name'].replace("'", "").replace('"', '').strip()
+            encoded_name = encodeURIComponent(name_clean)
+            image_url = (
+                f"https://image.pollinations.ai/prompt/"
+                f"anime%20manga%20character%20{encoded_name}%20portrait%20high%20quality?"
+                f"width=400&height=600&nologo=true&seed={abs(hash(char['id'])) % 10000}"
+            )
 
         enriched.append({
             "id": str(char['id']),
