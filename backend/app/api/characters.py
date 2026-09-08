@@ -229,8 +229,8 @@ async def get_character_list(limit: int = Query(120, le=1000)):
         for i, record in enumerate(records):
             img = record.get("image_url", "")
 
-            if not img or any(
-                    bad in img.lower() for bad in ['pollinations', 'dicebear', 'placeholder', 'null', 'none', '']):
+            # Sirf tab Pollinations use karo jab DB mein image NULL/empty ho
+            if not img or img.strip() == '':
                 name_clean = str(record['name']).replace("'", "").replace('"', '').strip()
                 img = f"https://image.pollinations.ai/prompt/anime%20{encodeURIComponent(name_clean)}%20portrait?width=100&height=100&nologo=true&seed={i}"
 
