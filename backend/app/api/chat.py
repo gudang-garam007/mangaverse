@@ -21,7 +21,7 @@ class ChatRequest(BaseModel):
 
 @router.post("/message")
 async def chat_with_character(request: ChatRequest):
-    logger.info(f"📨 Chat request for: {request.character_name}")
+    logger.info(f"📨 Chat request for: '{request.character_name}'")
 
     # 1. Fetch character from Neo4j
     query = """
@@ -35,25 +35,21 @@ async def chat_with_character(request: ChatRequest):
 
     try:
         results = await neo4j_db.execute_query(query, {"name": request.character_name})
-        logger.info(f"✅ Database query successful, found {len(results) if results else 0} results")
     except Exception as e:
         logger.error(f"❌ Database error: {e}")
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Database connection failed")
 
-    # 2. Character NOT found - Use SMART FALLBACK (never show error to user)
+    # 2. STRICT LOGIC: Use DB Prompt if available, ONLY fallback if genuinely missing
     if not results or len(results) == 0:
-        logger.warning(f"⚠️ Character '{request.character_name}' not in DB. Using AI fallback.")
+        logger.warning(f"⚠️ Character '{request.character_name}' NOT in DB. Using dynamic fallback.")
         char_name = request.character_name
         universe = "Anime/Manga"
         image_url = None
 
-        # Smart fallback prompt - LLM already knows these characters
+        # Dynamic fallback (only for characters we didn't seed)
         system_prompt = (
-            f"You are {char_name}, a popular anime/manga character. "
-            "Stay strictly in character at all times. "
-            "Use asterisks for physical actions and expressions (*smiles*, *crosses arms*). "
-            "Keep responses engaging, dramatic, and under 130 words. "
-            "Speak naturally with character-appropriate tone and catchphrases."
+            f"You are {char_name}. Stay strictly in character. "
+            "Use asterisks for actions (*smirks*). Keep under 130 words. Be engaging."
         )
     else:
         char = results[0]
@@ -62,19 +58,19 @@ async def chat_with_character(request: ChatRequest):
         image_url = char.get("image")
         custom_prompt = char.get("custom_prompt")
 
+        # ✅ THIS IS THE MAGIC: If we seeded it, we USE THE SEED PROMPT. Period.
         if custom_prompt:
             system_prompt = custom_prompt
-            logger.info(f"✅ Using custom prompt from DB for {char_name}")
+            logger.info(f"✅ USING SEED PROMPT for {char_name} (Kadak Mode ON)")
         else:
-            # Fallback if no custom prompt in DB
+            # Fallback for characters in DB but without custom prompt
             system_prompt = (
                 f"You are {char_name} from {universe}. "
-                f"Background: {char['bio'] or 'A legendary anime/manga character'}. "
-                "Stay in character. Use asterisks for actions (*action*). "
-                "Keep replies under 130 words. Be engaging and authentic."
+                f"Background: {char['bio'] or 'A legendary character'}. "
+                "Stay in character. Use asterisks for actions (*action*). Keep replies under 130 words."
             )
 
-    # 3. Prepare conversation history (last 6 messages)
+    # 3. Prepare history
     formatted_messages = []
     for h in request.history[-6:]:
         formatted_messages.append({"role": h.role, "content": h.content})
@@ -82,24 +78,20 @@ async def chat_with_character(request: ChatRequest):
 
     # 4. Generate AI response
     try:
-        logger.info(f" Generating response for {char_name}...")
         reply = await llm_service.generate(
             prompt=request.message,
             system_prompt=system_prompt,
             history=formatted_messages[:-1],
             max_tokens=250,
-            temperature=0.85
+            temperature=0.85  # High temperature for fun, unpredictable responses
         )
-
-        logger.info(f"✅ Response generated successfully")
 
         return {
             "character": char_name,
             "universe": universe,
             "image_url": image_url,
             "reply": reply,
-            "status": "success",
-            "from_db": bool(results and len(results) > 0)
+            "status": "success"
         }
 
     except Exception as e:
