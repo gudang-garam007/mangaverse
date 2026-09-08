@@ -206,13 +206,19 @@ async def get_characters_by_universe(
 
 
 @router.get("/list")
-async def get_character_list(limit: int = Query(120, le=500)):
+async def get_character_list(limit: int = Query(120, le=1000)):
     """Fetch characters with images directly from Neo4j DB for Chat sidebar"""
+
+    # 1. Pehle check karo ki database mein TOTAL kitne characters hain
+    count_query = "MATCH (c:Character) RETURN count(c) as total"
+    count_result = await neo4j_db.execute_query(count_query)
+    total_in_db = count_result[0]['total'] if count_result else 0
+
+    # 2. Ab list fetch karo (ORDER BY hata diya taaki koi sorting issue na ho)
     query = """
     MATCH (c:Character)
     OPTIONAL MATCH (c)-[:BELONGS_TO]->(u:Universe)
     RETURN c.name as name, c.image_url as image_url, u.title as universe
-    ORDER BY c.name
     LIMIT $limit
     """
 
@@ -223,10 +229,9 @@ async def get_character_list(limit: int = Query(120, le=500)):
         for i, record in enumerate(records):
             img = record.get("image_url", "")
 
-            # Agar DB mein image nahi hai ya invalid hai, toh Pollinations use karo
             if not img or any(
                     bad in img.lower() for bad in ['pollinations', 'dicebear', 'placeholder', 'null', 'none', '']):
-                name_clean = record['name'].replace("'", "").replace('"', '').strip()
+                name_clean = str(record['name']).replace("'", "").replace('"', '').strip()
                 img = f"https://image.pollinations.ai/prompt/anime%20{encodeURIComponent(name_clean)}%20portrait?width=100&height=100&nologo=true&seed={i}"
 
             characters.append({
@@ -236,7 +241,13 @@ async def get_character_list(limit: int = Query(120, le=500)):
                 "image_url": img
             })
 
-        return {"characters": characters, "total": len(characters)}
+        # 3. Response mein total_in_db bhi bhej do taaki hum debug kar sakein
+        return {
+            "characters": characters,
+            "returned": len(characters),
+            "total_in_database": total_in_db
+        }
+
     except Exception as e:
         logger.error(f"❌ Failed to fetch character list: {e}")
         raise HTTPException(status_code=500, detail="Database error")
