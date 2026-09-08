@@ -70,21 +70,26 @@ async def chat_with_character(request: ChatRequest):
                 "Stay in character. Use asterisks for actions (*action*). Keep replies under 130 words."
             )
 
-    # 3. Prepare history
-    formatted_messages = []
+    # 3. Prepare history by merging it into the prompt string
+    conversation_context = ""
     for h in request.history[-6:]:
-        formatted_messages.append({"role": h.role, "content": h.content})
-    formatted_messages.append({"role": "user", "content": request.message})
+        speaker = "User" if h.role == "user" else char_name
+        conversation_context += f"{speaker}: {h.content}\n"
 
-    # 4. Generate AI response
+    # Final prompt includes history + current message
+    final_prompt = f"{conversation_context}User: {request.message}\n{char_name}:"
+
+    # 4. Generate AI response (WITHOUT the 'history' keyword argument)
     try:
+        logger.info(f"🤖 Generating response for {char_name}...")
         reply = await llm_service.generate(
-            prompt=request.message,
+            prompt=final_prompt,
             system_prompt=system_prompt,
-            history=formatted_messages[:-1],
             max_tokens=250,
-            temperature=0.85  # High temperature for fun, unpredictable responses
+            temperature=0.85
         )
+
+        logger.info(f"✅ Response generated successfully for {char_name}")
 
         return {
             "character": char_name,
