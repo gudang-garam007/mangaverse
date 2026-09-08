@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { Send, Sparkles, User, Bot, Loader2, MessageCircle, Search } from "lucide-react";
-import Script from "next/script";
+import { Send, User, Bot, Loader2, MessageCircle, Search } from "lucide-react";
 
 interface Message {
   role: "user" | "assistant";
@@ -12,10 +11,17 @@ interface Message {
 interface Character {
   name: string;
   universe: string;
+  image_url: string;
 }
 
-// 113 Featured Characters for Instant Sidebar Loading
-const FEATURED_CHARACTERS: Character[] = [
+// Helper to generate consistent image URLs
+const getCharacterImage = (name: string) => {
+  const seed = name.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return `https://image.pollinations.ai/prompt/anime%20manga%20character%20${encodeURIComponent(name)}%20portrait%20high%20quality?width=100&height=100&nologo=true&seed=${seed}`;
+};
+
+// 113 Featured Characters with Auto-Generated Images
+const RAW_CHARACTERS = [
   { name: "Monkey D. Luffy", universe: "One Piece" }, { name: "Naruto Uzumaki", universe: "Naruto" },
   { name: "Son Goku", universe: "Dragon Ball" }, { name: "Roronoa Zoro", universe: "One Piece" },
   { name: "Nami", universe: "One Piece" }, { name: "Satoru Gojo", universe: "Jujutsu Kaisen" },
@@ -75,6 +81,11 @@ const FEATURED_CHARACTERS: Character[] = [
   { name: "Shinobu Kocho", universe: "Demon Slayer" }
 ];
 
+const FEATURED_CHARACTERS: Character[] = RAW_CHARACTERS.map(char => ({
+  ...char,
+  image_url: getCharacterImage(char.name)
+}));
+
 export default function ChatPage() {
   const [filteredCharacters, setFilteredCharacters] = useState<Character[]>(FEATURED_CHARACTERS);
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
@@ -117,11 +128,23 @@ export default function ChatPage() {
       });
 
       const data = await res.json();
-      const replyContent = res.ok ? data.reply : `Error: ${data.detail || "Character unavailable"}`;
 
-      setMessages(prev => [...prev, { role: "assistant", content: replyContent, timestamp: new Date() }]);
+      // ✅ Smart fallback: Agar backend ne dynamic prompt se reply diya, toh wo dikhao
+      if (res.ok && data.reply) {
+        setMessages(prev => [...prev, { role: "assistant", content: data.reply, timestamp: new Date() }]);
+      } else {
+        setMessages(prev => [...prev, {
+          role: "assistant",
+          content: `⚠️ ${data.detail || "Character is temporarily unavailable. Please try again."}`,
+          timestamp: new Date()
+        }]);
+      }
     } catch (err: any) {
-      setMessages(prev => [...prev, { role: "assistant", content: `Connection Error: ${err.message}`, timestamp: new Date() }]);
+      setMessages(prev => [...prev, {
+        role: "assistant",
+        content: `⚠️ Connection Error: ${err.message}`,
+        timestamp: new Date()
+      }]);
     } finally {
       setLoading(false);
     }
@@ -137,15 +160,23 @@ export default function ChatPage() {
     });
   };
 
+  // Reusable Image Component with Fallback
+  const CharacterAvatar = ({ name, size = "w-10 h-10", className = "" }: { name: string, size?: string, className?: string }) => {
+    const imageUrl = getCharacterImage(name);
+    return (
+      <img
+        src={imageUrl}
+        alt={name}
+        className={`${size} rounded-full object-cover border-2 border-purple-500/30 flex-shrink-0 ${className}`}
+        onError={(e) => {
+          (e.target as HTMLImageElement).src = `https://api.dicebear.com/9.0/bottts-neutral/svg?seed=${encodeURIComponent(name)}&backgroundColor=1a1a2e`;
+        }}
+      />
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-purple-950/20 to-gray-950 text-gray-100">
-      {/* 🚨 ADSTERRA AD PLACEMENT (Top Banner) 🚨 */}
-      {/* Apna Adsterra script neeche wali line mein paste kar. Example: */}
-      {/* <Script id="adsterra" strategy="afterInteractive" dangerouslySetInnerHTML={{ __html: `<script type="text/javascript">atOptions = {'key': 'YOUR_KEY', 'format': 'iframe', 'height': 90, 'width': 728};</script><script src="//your-adsterra-link.com/invoke.js"></script>` }} /> */}
-      <div className="w-full max-w-7xl mx-auto p-2 bg-gray-900/50 border-b border-gray-800 flex justify-center items-center min-h-[100px]">
-        <p className="text-gray-500 text-sm italic">📢 Adsterra Banner Ad Space (Paste your script in page.tsx)</p>
-      </div>
-
       <div className="max-w-7xl mx-auto p-4 md:p-6">
         <div className="text-center mb-6">
           <h1 className="text-4xl md:text-5xl font-black bg-gradient-to-r from-purple-400 via-pink-500 to-cyan-400 bg-clip-text text-transparent mb-2">
@@ -154,7 +185,7 @@ export default function ChatPage() {
           <p className="text-gray-400 text-sm md:text-base">Talk to 113+ favorite anime & manga characters in real-time</p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-6 h-[calc(100vh-280px)]">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-6 h-[calc(100vh-200px)]">
           {/* Character Selection Sidebar */}
           <div className="lg:col-span-1 bg-gray-900/50 backdrop-blur-xl border border-gray-800 rounded-2xl p-4 flex flex-col">
             <div className="relative mb-4">
@@ -173,14 +204,17 @@ export default function ChatPage() {
                 <button
                   key={idx}
                   onClick={() => { setSelectedCharacter(char); setMessages([]); }}
-                  className={`w-full p-3 rounded-xl transition-all text-left ${
+                  className={`w-full p-3 rounded-xl transition-all text-left flex items-center gap-3 ${
                     selectedCharacter?.name === char.name
                       ? "bg-purple-600/30 border-2 border-purple-500 scale-[1.02]"
                       : "bg-gray-800/50 border border-gray-700 hover:bg-gray-800 hover:border-purple-500/50"
                   }`}
                 >
-                  <div className="font-semibold text-sm truncate">{char.name}</div>
-                  <div className="text-xs text-gray-400 truncate">{char.universe}</div>
+                  <CharacterAvatar name={char.name} size="w-10 h-10" />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-sm truncate">{char.name}</div>
+                    <div className="text-xs text-gray-400 truncate">{char.universe}</div>
+                  </div>
                 </button>
               ))}
               {filteredCharacters.length === 0 && (
@@ -194,12 +228,10 @@ export default function ChatPage() {
             {selectedCharacter ? (
               <>
                 <div className="bg-gradient-to-r from-purple-900/40 to-pink-900/40 border-b border-gray-800 p-4 flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center text-xl font-bold">
-                    {selectedCharacter.name.charAt(0)}
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-white">{selectedCharacter.name}</h3>
-                    <p className="text-sm text-purple-300">{selectedCharacter.universe}</p>
+                  <CharacterAvatar name={selectedCharacter.name} size="w-12 h-12" className="border-purple-500" />
+                  <div className="min-w-0">
+                    <h3 className="text-xl font-bold text-white truncate">{selectedCharacter.name}</h3>
+                    <p className="text-sm text-purple-300 truncate">{selectedCharacter.universe}</p>
                   </div>
                 </div>
 
@@ -208,6 +240,7 @@ export default function ChatPage() {
                     <div className="flex flex-col items-center justify-center h-full text-center">
                       <MessageCircle className="w-16 h-16 text-purple-500/30 mb-4" />
                       <p className="text-gray-400 text-lg">Start chatting with {selectedCharacter.name}!</p>
+                      <p className="text-gray-500 text-sm mt-2">Type a message below to begin</p>
                     </div>
                   ) : (
                     messages.map((msg, idx) => (
@@ -230,12 +263,11 @@ export default function ChatPage() {
                       </div>
                     ))
                   )}
+
                   {loading && (
                     <div className="flex justify-start">
                       <div className="flex gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center">
-                          <Bot className="w-5 h-5 text-white" />
-                        </div>
+                        <CharacterAvatar name={selectedCharacter.name} size="w-10 h-10" className="border-purple-500/50" />
                         <div className="bg-gray-800 border border-gray-700 rounded-2xl px-4 py-3 flex gap-1 items-center">
                           <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
                           <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
