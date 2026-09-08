@@ -4,6 +4,7 @@ from urllib.parse import quote as encodeURIComponent
 from fastapi import APIRouter, Query
 from typing import List, Dict
 from app.cache.character_cache import character_cache
+from app.db.neo4j import neo4j_db
 from loguru import logger
 from fastapi import APIRouter, Query, HTTPException
 
