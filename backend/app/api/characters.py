@@ -5,6 +5,7 @@ from fastapi import APIRouter, Query
 from typing import List, Dict
 from app.cache.character_cache import character_cache
 from loguru import logger
+from fastapi import APIRouter, Query, HTTPException
 
 router = APIRouter(prefix="/api/characters", tags=["Characters"])
 
@@ -201,3 +202,40 @@ async def get_characters_by_universe(
         })
 
     return {"characters": enriched, "universe": universe_name, "total": len(enriched), "cached": True}
+
+
+@router.get("/list")
+async def get_character_list(limit: int = Query(120, le=500)):
+    """Fetch characters with images directly from Neo4j DB for Chat sidebar"""
+    query = """
+    MATCH (c:Character)
+    OPTIONAL MATCH (c)-[:BELONGS_TO]->(u:Universe)
+    RETURN c.name as name, c.image_url as image_url, u.title as universe
+    ORDER BY c.name
+    LIMIT $limit
+    """
+
+    try:
+        records = await neo4j_db.execute_query(query, {"limit": limit})
+
+        characters = []
+        for i, record in enumerate(records):
+            img = record.get("image_url", "")
+
+            # Agar DB mein image nahi hai ya invalid hai, toh Pollinations use karo
+            if not img or any(
+                    bad in img.lower() for bad in ['pollinations', 'dicebear', 'placeholder', 'null', 'none', '']):
+                name_clean = record['name'].replace("'", "").replace('"', '').strip()
+                img = f"https://image.pollinations.ai/prompt/anime%20{encodeURIComponent(name_clean)}%20portrait?width=100&height=100&nologo=true&seed={i}"
+
+            characters.append({
+                "id": str(i),
+                "name": record["name"] or "Unknown",
+                "universe": record["universe"] or "Manga",
+                "image_url": img
+            })
+
+        return {"characters": characters, "total": len(characters)}
+    except Exception as e:
+        logger.error(f"❌ Failed to fetch character list: {e}")
+        raise HTTPException(status_code=500, detail="Database error")

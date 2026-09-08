@@ -85,7 +85,7 @@ async def chat_with_character(request: ChatRequest):
         reply = await llm_service.generate(
             prompt=final_prompt,
             system_prompt=system_prompt,
-            max_tokens=250,
+            max_tokens=300,
             temperature=0.85
         )
 

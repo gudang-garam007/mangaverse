@@ -31,7 +31,8 @@ export default function ChatPage() {
     const fetchCharacters = async () => {
       try {
         setLoadingChars(true);
-        const res = await fetch("https://api.tenrai.org/v1/characters?limit=120");
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || window.location.origin;
+        const res = await fetch(`${apiUrl}/api/characters/list?limit=120`);
 
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
