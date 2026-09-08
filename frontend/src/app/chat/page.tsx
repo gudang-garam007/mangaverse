@@ -27,7 +27,7 @@ export default function ChatPage() {
   const [loadingChars, setLoadingChars] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+    useEffect(() => {
     const fetchCharacters = async () => {
       try {
         setLoadingChars(true);
@@ -37,23 +37,20 @@ export default function ChatPage() {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
         const data = await res.json();
-        const chars: Character[] = data.data?.map((c: any) => ({
-          id: c.id?.toString() || Math.random().toString(),
-          name: c.attributes?.name || c.attributes?.names?.en || "Unknown",
-          universe: c.attributes?.media?.nodes?.[0]?.title || "Unknown",
-          image_url: c.attributes?.image?.large || c.attributes?.image?.original || ""
-        })) || [];
 
-        console.log(`✅ Loaded ${chars.length} characters from Tenrai API`);
+        // ✅ SAHI PARSING: Backend "characters" key bhej raha hai, "data" nahi
+        const chars: Character[] = data.characters || [];
+
+        console.log(`✅ Loaded ${chars.length} characters from OUR Database`);
         setCharacters(chars);
         setFilteredCharacters(chars);
       } catch (err) {
-        console.error("❌ Failed to fetch characters:", err);
+        console.error("❌ Failed to fetch characters from backend:", err);
         const fallback: Character[] = [
-          { id: "1", name: "Monkey D. Luffy", universe: "One Piece", image_url: "" },
-          { id: "2", name: "Naruto Uzumaki", universe: "Naruto", image_url: "" },
-          { id: "3", name: "Son Goku", universe: "Dragon Ball", image_url: "" },
-          { id: "4", name: "Satoru Gojo", universe: "Jujutsu Kaisen", image_url: "" }
+          { id: "1", name: "Monkey D. Luffy", universe: "One Piece", image_url: "https://api.dicebear.com/9.0/bottts-neutral/svg?seed=Luffy&backgroundColor=1a1a2e" },
+          { id: "2", name: "Naruto Uzumaki", universe: "Naruto", image_url: "https://api.dicebear.com/9.0/bottts-neutral/svg?seed=Naruto&backgroundColor=1a1a2e" },
+          { id: "3", name: "Son Goku", universe: "Dragon Ball", image_url: "https://api.dicebear.com/9.0/bottts-neutral/svg?seed=Goku&backgroundColor=1a1a2e" },
+          { id: "4", name: "Satoru Gojo", universe: "Jujutsu Kaisen", image_url: "https://api.dicebear.com/9.0/bottts-neutral/svg?seed=Gojo&backgroundColor=1a1a2e" }
         ];
         setCharacters(fallback);
         setFilteredCharacters(fallback);
