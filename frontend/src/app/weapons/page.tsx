@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Script from "next/script";
 import { Sword, Zap, Shield, Search, Share2, X, Flame, Sparkles, Trophy } from "lucide-react";
 
@@ -30,7 +30,6 @@ export default function WeaponsPage() {
   const [loading, setLoading] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
 
-  // ✅ NEW: Specific loading state for initial database fetch
   const [isDatabaseLoading, setIsDatabaseLoading] = useState(true);
 
   // Quiz states
@@ -43,12 +42,20 @@ export default function WeaponsPage() {
   const [battleW2, setBattleW2] = useState("");
   const [battleResult, setBattleResult] = useState<any>(null);
 
+  // ✅ NEW: Gacha Modal States
+  const [gachaOpen, setGachaOpen] = useState(false);
+  const [gachaResult, setGachaResult] = useState<Weapon | null>(null);
+
+  // ✅ NEW: Slash Easter Egg States
+  const mouseStart = useRef({ x: 0, y: 0 });
+  const [showSlash, setShowSlash] = useState(false);
+
   useEffect(() => {
     fetchWeapons();
   }, []);
 
   const fetchWeapons = async (q?: string) => {
-    if (!q) setIsDatabaseLoading(true); // Show loader only on initial full fetch
+    if (!q) setIsDatabaseLoading(true);
     try {
       const url = q ? `${API_BASE}/search?q=${encodeURIComponent(q)}` : `${API_BASE}/all`;
       const res = await fetch(url);
@@ -57,7 +64,7 @@ export default function WeaponsPage() {
     } catch (err) {
       console.error("Fetch error:", err);
     } finally {
-      if (!q) setIsDatabaseLoading(false); // Hide loader when done
+      if (!q) setIsDatabaseLoading(false);
     }
   };
 
@@ -109,7 +116,6 @@ export default function WeaponsPage() {
     setQuizResult(null);
   };
 
-  // Funny Personalized Messages
   const getFunnyMessage = (weapon: Weapon) => {
     const messages: Record<string, string[]> = {
       high_power: [
@@ -148,7 +154,6 @@ export default function WeaponsPage() {
     return messages.low_stats[Math.floor(Math.random() * messages.low_stats.length)];
   };
 
-  // Share Function
   const handleShareWeapon = async () => {
     setIsCapturing(true);
 
@@ -190,7 +195,6 @@ export default function WeaponsPage() {
     }
   };
 
-  // Battle Logic
   const handleBattle = async () => {
     if (!battleW1 || !battleW2) return;
     setLoading(true);
@@ -212,25 +216,81 @@ export default function WeaponsPage() {
     return "text-green-400";
   };
 
+  // ✅ ENHANCED: Glowing Stat Bars with Heatmap Effect
   const getStatBar = (val: number, max: number = 100) => {
     const pct = Math.min((val / max) * 100, 100);
+    const barColor =
+      pct >= 90 ? "from-red-600 via-orange-500 to-pink-500" :
+      pct >= 70 ? "from-orange-600 via-yellow-500 to-amber-500" :
+      pct >= 50 ? "from-yellow-600 via-green-500 to-emerald-500" :
+      "from-green-600 via-cyan-500 to-blue-500";
+
+    const glowColor =
+      pct >= 90 ? "shadow-red-500/50" :
+      pct >= 70 ? "shadow-orange-500/40" :
+      pct >= 50 ? "shadow-yellow-500/30" :
+      "shadow-green-500/20";
+
     return (
-      <div className="w-full bg-gray-800 rounded-full h-2 overflow-hidden">
+      <div className="w-full bg-gray-800 rounded-full h-2.5 overflow-hidden border border-gray-700/50">
         <div
-          className={`h-full rounded-full transition-all duration-500 ${
-            pct >= 90 ? "bg-gradient-to-r from-red-500 to-pink-500" :
-            pct >= 70 ? "bg-gradient-to-r from-orange-500 to-yellow-500" :
-            pct >= 50 ? "bg-gradient-to-r from-yellow-500 to-green-500" :
-            "bg-gradient-to-r from-green-500 to-cyan-500"
-          }`}
+          className={`h-full rounded-full transition-all duration-700 ease-out bg-gradient-to-r ${barColor} shadow-lg ${glowColor} relative`}
           style={{ width: `${pct}%` }}
-        />
+        >
+          {/* Animated Shine Effect */}
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-[shimmer_2s_infinite]" />
+        </div>
       </div>
     );
   };
 
+  // ✅ NEW: Gacha Summon Function
+  const triggerGacha = () => {
+    setGachaOpen(true);
+    setGachaResult(null);
+
+    setTimeout(() => {
+      if (weapons.length > 0) {
+        const randomWeapon = weapons[Math.floor(Math.random() * weapons.length)];
+        setGachaResult(randomWeapon);
+      }
+    }, 1800);
+  };
+
+  // ✅ NEW: Slash Easter Egg Handlers
+  const handleMouseDown = (e: any) => {
+    mouseStart.current = { x: e.clientX, y: e.clientY };
+  };
+
+  const handleMouseUp = (e: any) => {
+    const dx = e.clientX - mouseStart.current.x;
+    const dy = e.clientY - mouseStart.current.y;
+
+    // Diagonal swipe detection (150px threshold)
+    if (Math.abs(dx) > 150 && Math.abs(dy) > 150) {
+      setShowSlash(true);
+      setTimeout(() => setShowSlash(false), 500);
+    }
+  };
+
   return (
-    <main className="min-h-screen bg-gradient-to-br from-gray-950 via-red-950/10 to-gray-950 text-gray-100 p-4 pb-20">
+    <main
+      className="min-h-screen bg-gradient-to-br from-gray-950 via-red-950/10 to-gray-950 text-gray-100 p-4 pb-20"
+      onMouseDown={handleMouseDown}
+      onMouseUp={handleMouseUp}
+    >
+      {/* ✅ NEW: Slash Easter Egg Overlay */}
+      {showSlash && (
+        <div className="fixed inset-0 z-[300] pointer-events-none overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-red-500 to-transparent opacity-90 rotate-[-45deg] animate-[slashAnim_0.4s_ease-out_forwards]" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-6xl font-black text-white drop-shadow-[0_0_20px_rgba(239,68,68,1)] animate-[fadeIn_0.3s_ease-out]">
+              Domain Expanded: Neural Ninjas Arsenal
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-5xl mx-auto">
         {/* Header */}
         <div className="text-center mb-6 pt-4">
@@ -240,6 +300,17 @@ export default function WeaponsPage() {
           <p className="text-sm text-gray-400">
             Browse 90+ Iconic Weapons • Take the Quiz • Battle Simulator
           </p>
+        </div>
+
+        {/* ✅ NEW: Gacha Summon Button */}
+        <div className="flex justify-center mb-6">
+          <button
+            onClick={triggerGacha}
+            className="px-8 py-4 bg-gradient-to-r from-red-600 via-orange-600 to-yellow-600 hover:from-red-500 hover:via-orange-500 hover:to-yellow-500 text-white font-black rounded-xl shadow-lg shadow-red-500/40 transition-all hover:scale-105 flex items-center gap-3 border border-red-400/30"
+          >
+            <Sparkles className="w-5 h-5" />
+            ✨ Summon Cursed Weapon
+          </button>
         </div>
 
         {/* Tabs */}
@@ -288,7 +359,6 @@ export default function WeaponsPage() {
               />
             </div>
 
-            {/* ✅ LOADING UI: Jab Weapons Database se aa rahe honge */}
             {isDatabaseLoading ? (
               <div className="flex flex-col items-center justify-center py-20 animate-in fade-in">
                 <div className="w-16 h-16 border-4 border-red-500 border-t-transparent rounded-full animate-spin mb-4"></div>
@@ -299,32 +369,43 @@ export default function WeaponsPage() {
               </div>
             ) : (
               <>
-                {/* Weapons Grid */}
+                {/* ✅ ENHANCED: Weapons Grid with Forge & Shatter Effects */}
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {weapons.map((w) => (
                     <div
                       key={w.name}
                       onClick={() => setSelectedWeapon(w)}
-                      className="bg-gray-900/60 backdrop-blur-sm rounded-xl border border-gray-800 hover:border-red-500/50 p-4 cursor-pointer transition-all hover:scale-[1.02] group"
+                      className="bg-gray-900/60 backdrop-blur-sm rounded-xl border border-gray-800 hover:border-red-500/50 p-4 cursor-pointer transition-all hover:scale-[1.02] group relative overflow-hidden"
                     >
-                      <div className="flex items-start justify-between mb-2">
-                        <h3 className="text-lg font-bold text-white group-hover:text-red-400 transition">{w.name}</h3>
-                        <span className={`text-sm font-black ${getPowerColor(w.power)}`}>{w.power}</span>
+                      {/* ✅ NEW: Hover Spark Effect */}
+                      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-red-500/20 to-transparent rounded-full blur-2xl animate-pulse" />
+                        <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-orange-500/20 to-transparent rounded-full blur-xl animate-pulse" style={{ animationDelay: '0.5s' }} />
                       </div>
-                      <p className="text-xs text-gray-400 mb-1">{w.owner} • {w.anime}</p>
-                      <p className="text-xs text-gray-500 mb-3">{w.type}</p>
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2 text-xs">
-                          <span className="text-gray-500 w-12">PWR</span>
-                          {getStatBar(w.power, 1000)}
+
+                      <div className="relative z-10">
+                        <div className="flex items-start justify-between mb-2">
+                          <h3 className="text-lg font-bold text-white group-hover:text-red-400 transition">{w.name}</h3>
+                          <span className={`text-sm font-black ${getPowerColor(w.power)}`}>{w.power}</span>
                         </div>
-                        <div className="flex items-center gap-2 text-xs">
-                          <span className="text-gray-500 w-12">SPD</span>
-                          {getStatBar(w.speed)}
-                        </div>
-                        <div className="flex items-center gap-2 text-xs">
-                          <span className="text-gray-500 w-12">HAX</span>
-                          {getStatBar(w.hax)}
+                        <p className="text-xs text-gray-400 mb-1">{w.owner} • {w.anime}</p>
+                        <p className="text-xs text-gray-500 mb-3">{w.type}</p>
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 text-xs">
+                            <Flame className="w-3 h-3 text-red-400" />
+                            <span className="text-gray-500 w-12">PWR</span>
+                            {getStatBar(w.power, 1000)}
+                          </div>
+                          <div className="flex items-center gap-2 text-xs">
+                            <Zap className="w-3 h-3 text-cyan-400" />
+                            <span className="text-gray-500 w-12">SPD</span>
+                            {getStatBar(w.speed)}
+                          </div>
+                          <div className="flex items-center gap-2 text-xs">
+                            <Shield className="w-3 h-3 text-purple-400" />
+                            <span className="text-gray-500 w-12">HAX</span>
+                            {getStatBar(w.hax)}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -410,21 +491,17 @@ export default function WeaponsPage() {
               </div>
             ) : (
               <div className="relative">
-                {/* Beautiful Shareable Card */}
                 <div
                   id="weapon-share-card"
                   className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-red-900/60 via-orange-900/60 to-yellow-900/60 border-2 border-red-500/50 shadow-2xl shadow-red-500/30 p-8"
                 >
-                  {/* Animated Background */}
                   <div className="absolute inset-0 opacity-30">
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.4),transparent_50%)] animate-pulse" />
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(255,200,100,0.3),transparent_50%)]" />
                   </div>
 
-                  {/* Holographic Shine Effect */}
                   <div className="absolute inset-0 opacity-20 pointer-events-none bg-[linear-gradient(115deg,transparent_20%,rgba(255,255,255,0.5)_40%,rgba(255,255,255,0.7)_50%,rgba(255,255,255,0.5)_60%,transparent_80%)] animate-[shimmer_3s_infinite_linear]" />
 
-                  {/* Content */}
                   <div className="relative z-10">
                     <div className="text-center mb-6">
                       <div className="inline-flex items-center gap-2 px-4 py-2 bg-black/40 backdrop-blur-sm rounded-full border border-red-500/50 mb-3">
@@ -500,7 +577,6 @@ export default function WeaponsPage() {
                   </div>
                 </div>
 
-                {/* Action Buttons */}
                 <div className="mt-6 flex gap-3">
                   <button
                     onClick={handleShareWeapon}
@@ -569,7 +645,6 @@ export default function WeaponsPage() {
               </button>
             </div>
 
-            {/* ✅ LOADING UI: Jab Weapon Battle Calculate ho raha ho */}
             {loading && (
               <div className="flex flex-col items-center justify-center py-16 animate-in fade-in">
                 <div className="w-16 h-16 border-4 border-red-500 border-t-transparent rounded-full animate-spin mb-4"></div>
@@ -670,11 +745,49 @@ export default function WeaponsPage() {
         )}
       </div>
 
-      {/* CSS Animation */}
+      {/* ✅ NEW: Gacha Modal */}
+      {gachaOpen && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[250] flex items-center justify-center p-4">
+          <div className="bg-gradient-to-br from-gray-900 via-red-950/50 to-gray-900 border-2 border-red-500/40 p-8 rounded-3xl max-w-md w-full text-center relative shadow-[0_0_60px_rgba(239,68,68,0.4)]">
+            <button onClick={() => setGachaOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white">
+              <X />
+            </button>
+            <h3 className="text-2xl font-black text-white mb-6">Summoning Cursed Artifact...</h3>
+
+            {!gachaResult ? (
+              <div className="py-8">
+                <div className="w-24 h-24 mx-auto border-4 border-red-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                <p className="text-sm text-gray-400 font-mono animate-pulse">Unsealing forbidden realms...</p>
+              </div>
+            ) : (
+              <div className="animate-[fadeIn_0.5s_ease-out]">
+                <div className="p-6 rounded-2xl border-2 border-red-500/60 shadow-xl bg-black/60">
+                  <span className="text-xs font-bold uppercase tracking-widest text-amber-400">✨ Drop Unlocked!</span>
+                  <h4 className="text-3xl font-black text-red-400 mt-2">{gachaResult.name}</h4>
+                  <p className="text-sm text-gray-300 mt-1">{gachaResult.type}</p>
+                  <div className="mt-4 text-sm font-bold text-white bg-red-950/60 py-2 rounded-lg border border-red-900/60">
+                    POWER INDEX: {gachaResult.power}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ✅ ENHANCED CSS Animations */}
       <style jsx global>{`
         @keyframes shimmer {
           0% { transform: translateX(-150%) skewX(-15deg); }
           100% { transform: translateX(150%) skewX(-15deg); }
+        }
+        @keyframes slashAnim {
+          0% { transform: rotate(-45deg) translateY(-100%); opacity: 1; }
+          100% { transform: rotate(-45deg) translateY(100%); opacity: 0; }
+        }
+        @keyframes fadeIn {
+          0% { opacity: 0; transform: scale(0.9); }
+          100% { opacity: 1; transform: scale(1); }
         }
       `}</style>
     </main>
