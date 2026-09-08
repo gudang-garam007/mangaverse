@@ -1,13 +1,16 @@
-# backend/app/api/weapons.py
+import json
+import hashlib
+import re
+import random
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from typing import List, Optional
 from app.db.neo4j import neo4j_db
 from app.services.llm_service import llm_service
 from loguru import logger
-import random
 
 router = APIRouter()
+
 
 @router.get("/all")
 async def get_all_weapons():
@@ -26,6 +29,7 @@ async def get_all_weapons():
     except Exception as e:
         logger.error(f"Weapons fetch error: {e}")
         raise HTTPException(500, str(e))
+
 
 @router.get("/search")
 async def search_weapons(q: str = Query(..., min_length=1)):
@@ -49,9 +53,10 @@ async def search_weapons(q: str = Query(..., min_length=1)):
         logger.error(f"Weapon search error: {e}")
         return {"weapons": [], "status": "success"}
 
+
 @router.get("/battle")
 async def weapon_battle(weapon1: str, weapon2: str):
-    """Simulate a battle between two weapons"""
+    """Simulate a battle between two weapons with AI Verdict"""
     try:
         query = """
         MATCH (w:Weapon)
@@ -60,25 +65,37 @@ async def weapon_battle(weapon1: str, weapon2: str):
                w.hax as hax, w.ability as ability, w.owner as owner
         LIMIT 1
         """
-        w1 = await neo4j_db.execute_query(query, {"name": weapon1})
-        w2 = await neo4j_db.execute_query(query, {"name": weapon2})
+        w1_res = await neo4j_db.execute_query(query, {"name": weapon1})
+        w2_res = await neo4j_db.execute_query(query, {"name": weapon2})
 
-        if not w1 or not w2:
+        if not w1_res or not w2_res:
             return {"error": "One or both weapons not found", "status": "error"}
 
-        w1, w2 = w1[0], w2[0]
+        w1, w2 = w1_res[0], w2_res[0]
 
         # Calculate battle score
         score1 = (w1.get("power", 0) * 0.4 + w1.get("speed", 0) * 0.3 + w1.get("hax", 0) * 0.3)
         score2 = (w2.get("power", 0) * 0.4 + w2.get("speed", 0) * 0.3 + w2.get("hax", 0) * 0.3)
 
-        # Add randomness (±15%)
+        # Add randomness (±15%) for dynamic outcomes
         score1 *= random.uniform(0.85, 1.15)
         score2 *= random.uniform(0.85, 1.15)
 
         winner = w1 if score1 > score2 else w2
         loser = w2 if score1 > score2 else w1
         win_chance = max(score1, score2) / (score1 + score2) * 100
+
+        # ✅ NEW: Generate Epic AI Battle Verdict
+        verdict_prompt = f"""Write a short, epic, 2-sentence manga battle verdict.
+Winner: {winner['name']} (Owner: {winner['owner']}, Ability: {winner['ability']})
+Loser: {loser['name']} (Owner: {loser['owner']}, Ability: {loser['ability']})
+Make it dramatic, mentioning how the winner's ability overpowered the loser. Keep it under 40 words."""
+
+        try:
+            ai_verdict = await llm_service.generate(verdict_prompt, max_tokens=100, temperature=0.8)
+        except Exception as e:
+            logger.warning(f"AI verdict failed, using fallback: {e}")
+            ai_verdict = f"{winner['name']} completely overwhelmed {loser['name']} with sheer tactical superiority!"
 
         return {
             "weapon1": w1,
@@ -88,11 +105,13 @@ async def weapon_battle(weapon1: str, weapon2: str):
             "win_chance": round(win_chance, 1),
             "score1": round(score1, 1),
             "score2": round(score2, 1),
+            "verdict": ai_verdict.strip(),  # ✅ Frontend can use this!
             "status": "success"
         }
     except Exception as e:
         logger.error(f"Battle error: {e}")
         raise HTTPException(500, str(e))
+
 
 class WeaponQuizRequest(BaseModel):
     answers: dict
@@ -114,7 +133,7 @@ async def weapon_quiz(req: WeaponQuizRequest):
 - Personality: {personality}
 - Range: {range_pref}
 
-Return STRICT JSON only:
+Return STRICT JSON only (no markdown, no extra text):
 {{
   "name": "Creative weapon name",
   "type": "Weapon type",
@@ -124,18 +143,23 @@ Return STRICT JSON only:
   "ability": "One special ability description",
   "weakness": "One weakness",
   "lore": "2 sentence epic backstory",
-  "visual": "Visual description for image generation (e.g., 'glowing red katana with fire effects')"
+  "visual": "Visual description for image generation (e.g., glowing red katana with fire effects)"
 }}"""
 
         response = await llm_service.generate(prompt, max_tokens=500, temperature=0.9)
 
-        import json
+        # ✅ ENHANCED: Bulletproof JSON extraction (handles ```json ... ``` markdown)
         clean = response.strip()
-        if clean.startswith("```"):
-            clean = clean.split("\n", 1)[1].rsplit("```", 1)[0]
-        data = json.loads(clean)
+        clean = re.sub(r'^```(?:json)?\s*', '', clean, flags=re.IGNORECASE)
+        clean = re.sub(r'\s*```$', '', clean)
 
-        # ✅ FIXED: Generate image URL with better prompt
+        try:
+            data = json.loads(clean)
+        except json.JSONDecodeError:
+            logger.error(f"LLM returned invalid JSON: {clean}")
+            raise ValueError("Invalid JSON from LLM")
+
+        # ✅ Generate Image URL with better prompt
         visual = data.get("visual", "epic manga weapon glowing")
         weapon_name = data.get("name", "manga weapon")
 
@@ -144,13 +168,13 @@ Return STRICT JSON only:
         image_prompt = "".join(c for c in image_prompt if c.isalnum() or c in " .,-_")
 
         # Generate deterministic URL
-        import hashlib
         seed = hashlib.md5(f"{weapon_name}{element}{style}".encode()).hexdigest()[:8]
 
         data[
             "image_url"] = f"https://image.pollinations.ai/prompt/{image_prompt}?width=512&height=512&nologo=true&seed={seed}&model=flux"
 
         return {"weapon": data, "status": "success"}
+
     except Exception as e:
         logger.error(f"Quiz error: {e}")
         # Fallback with working image
