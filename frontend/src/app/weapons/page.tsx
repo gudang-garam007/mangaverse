@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Script from "next/script";
-import { Sword, Zap, Shield, Search, Share2, X, Flame, Sparkles, Trophy } from "lucide-react";
+import { Sword, Zap, Shield, Search, Share2, X, Flame, Sparkles, Trophy, AlertTriangle } from "lucide-react";
 
 const API_BASE = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/weapons`;
 
@@ -29,8 +29,13 @@ export default function WeaponsPage() {
   const [selectedWeapon, setSelectedWeapon] = useState<Weapon | null>(null);
   const [loading, setLoading] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
-
   const [isDatabaseLoading, setIsDatabaseLoading] = useState(true);
+
+  // ✅ NEW: Gacha & Slash states
+  const [gachaOpen, setGachaOpen] = useState(false);
+  const [gachaResult, setGachaResult] = useState<Weapon | null>(null);
+  const mouseStart = useRef({ x: 0, y: 0 });
+  const [showSlash, setShowSlash] = useState(false);
 
   // Quiz states
   const [quizStep, setQuizStep] = useState(0);
@@ -41,14 +46,6 @@ export default function WeaponsPage() {
   const [battleW1, setBattleW1] = useState("");
   const [battleW2, setBattleW2] = useState("");
   const [battleResult, setBattleResult] = useState<any>(null);
-
-  // ✅ NEW: Gacha Modal States
-  const [gachaOpen, setGachaOpen] = useState(false);
-  const [gachaResult, setGachaResult] = useState<Weapon | null>(null);
-
-  // ✅ NEW: Slash Easter Egg States
-  const mouseStart = useRef({ x: 0, y: 0 });
-  const [showSlash, setShowSlash] = useState(false);
 
   useEffect(() => {
     fetchWeapons();
@@ -76,9 +73,9 @@ export default function WeaponsPage() {
 
   // Quiz Logic
   const quizQuestions = [
-    { key: "style", q: "What's your fighting style?", options: ["Aggressive ⚔️", "Defensive 🛡️", "Strategic 🧠", "Speed-based ⚡"] },
-    { key: "element", q: "Choose your element!", options: ["Fire 🔥", "Ice ❄️", "Lightning ⚡", "Shadow 🌑", "Wind 🌪️", "Light ✨"] },
-    { key: "personality", q: "Your personality?", options: ["Hot-headed 😤", "Calm & Collected 😌", "Chaotic Evil 😈", "Silent Warrior 🤫"] },
+    { key: "style", q: "What's your fighting style?", options: ["Aggressive ️", "Defensive 🛡️", "Strategic 🧠", "Speed-based ⚡"] },
+    { key: "element", q: "Choose your element!", options: ["Fire ", "Ice ❄️", "Lightning ", "Shadow 🌑", "Wind ️", "Light ✨"] },
+    { key: "personality", q: "Your personality?", options: ["Hot-headed 😤", "Calm & Collected 😌", "Chaotic Evil ", "Silent Warrior 🤫"] },
     { key: "range", q: "Preferred range?", options: ["Melee (Close) 🗡️", "Mid-range 🏹", "Long-range 🔫", "All-range 🌀"] },
   ];
 
@@ -118,35 +115,14 @@ export default function WeaponsPage() {
 
   const getFunnyMessage = (weapon: Weapon) => {
     const messages: Record<string, string[]> = {
-      high_power: [
-        "With this kind of power, you could probably cut through your ex's excuses! 💪",
-        "Your weapon is so powerful, it makes Saitama look lazy! 🔥",
-        "Congratulations! You're now 90% more dangerous than average! ⚔️"
-      ],
-      high_speed: [
-        "So fast, you'll finish battles before your enemies realize they started! ⚡",
-        "Speed demon detected! Even Flash would be jealous! 💨",
-        "You move so fast, you're basically everywhere at once! 🌪️"
-      ],
-      high_hax: [
-        "Your weapon breaks reality more than your sleep schedule! 🌀",
-        "So hax it should be illegal... oh wait, it is! ⚖️",
-        "Reality? More like 'reality-minus' with this weapon! 🎮"
-      ],
-      balanced: [
-        "Jack of all trades, master of... well, all trades actually! 🎯",
-        "Perfectly balanced, as all things should be! ⚖️",
-        "You're the Swiss Army knife of manga warriors! 🔧"
-      ],
-      low_stats: [
-        "It's not about the size of the weapon, it's how you use it! 😅",
-        "Underdog energy! David would be proud! 💪",
-        "Sometimes the weakest weapon makes the strongest story! 📖"
-      ]
+      high_power: ["With this kind of power, you could probably cut through your ex's excuses! 💪", "Your weapon is so powerful, it makes Saitama look lazy! 🔥"],
+      high_speed: ["So fast, you'll finish battles before your enemies realize they started! ⚡", "Speed demon detected! Even Flash would be jealous! 💨"],
+      high_hax: ["Your weapon breaks reality more than your sleep schedule! 🌀", "So hax it should be illegal... oh wait, it is! ️"],
+      balanced: ["Jack of all trades, master of... well, all trades actually! 🎯", "Perfectly balanced, as all things should be! ⚖️"],
+      low_stats: ["It's not about the size of the weapon, it's how you use it! 😅", "Underdog energy! David would be proud! 💪"]
     };
 
     const avg = (weapon.power / 10 + weapon.speed + weapon.hax) / 3;
-
     if (weapon.power >= 900) return messages.high_power[Math.floor(Math.random() * messages.high_power.length)];
     if (weapon.speed >= 95) return messages.high_speed[Math.floor(Math.random() * messages.high_speed.length)];
     if (weapon.hax >= 85) return messages.high_hax[Math.floor(Math.random() * messages.high_hax.length)];
@@ -156,31 +132,16 @@ export default function WeaponsPage() {
 
   const handleShareWeapon = async () => {
     setIsCapturing(true);
-
     try {
       const { toPng } = await import("html-to-image");
       const card = document.getElementById("weapon-share-card");
-
       if (!card) throw new Error("Card not found");
 
-      const dataUrl = await toPng(card, {
-        pixelRatio: 3,
-        backgroundColor: "#0a0a0f",
-        quality: 1.0,
-      });
-
-      const file = new File(
-        [await (await fetch(dataUrl)).blob()],
-        `my-weapon-${quizResult?.name.replace(/\s+/g, '-').toLowerCase()}.png`,
-        { type: "image/png" }
-      );
+      const dataUrl = await toPng(card, { pixelRatio: 3, backgroundColor: "#0a0a0f", quality: 1.0 });
+      const file = new File([await (await fetch(dataUrl)).blob()], `my-weapon-${quizResult?.name.replace(/\s+/g, '-').toLowerCase()}.png`, { type: "image/png" });
 
       if (navigator.share && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          title: `My Manga Weapon: ${quizResult?.name}`,
-          text: `I got ${quizResult?.name} in the MangaVerse quiz! ${getFunnyMessage(quizResult!)}`,
-          files: [file],
-        });
+        await navigator.share({ title: `My Manga Weapon: ${quizResult?.name}`, text: `I got ${quizResult?.name}! ${getFunnyMessage(quizResult!)}`, files: [file] });
       } else {
         const link = document.createElement("a");
         link.download = `my-weapon-${quizResult?.name.replace(/\s+/g, '-').toLowerCase()}.png`;
@@ -189,21 +150,24 @@ export default function WeaponsPage() {
       }
     } catch (err) {
       console.error("Share error:", err);
-      alert("Could not generate image. Try taking a screenshot!");
+      alert("Could not generate image. Try screenshot!");
     } finally {
       setIsCapturing(false);
     }
   };
 
+  // ✅ UPDATED: Battle function with error handling
   const handleBattle = async () => {
     if (!battleW1 || !battleW2) return;
     setLoading(true);
+    setBattleResult(null);
     try {
       const res = await fetch(`${API_BASE}/battle?weapon1=${encodeURIComponent(battleW1)}&weapon2=${encodeURIComponent(battleW2)}`);
       const data = await res.json();
-      if (data.status === "success") setBattleResult(data);
+      setBattleResult(data); // Set regardless of status
     } catch (err) {
       console.error("Battle error:", err);
+      setBattleResult({ status: "error", error: "Network error occurred." });
     } finally {
       setLoading(false);
     }
@@ -216,57 +180,42 @@ export default function WeaponsPage() {
     return "text-green-400";
   };
 
-  // ✅ ENHANCED: Glowing Stat Bars with Heatmap Effect
+  // ✅ ENHANCED: Glowing Stat Bars
   const getStatBar = (val: number, max: number = 100) => {
     const pct = Math.min((val / max) * 100, 100);
-    const barColor =
-      pct >= 90 ? "from-red-600 via-orange-500 to-pink-500" :
-      pct >= 70 ? "from-orange-600 via-yellow-500 to-amber-500" :
-      pct >= 50 ? "from-yellow-600 via-green-500 to-emerald-500" :
-      "from-green-600 via-cyan-500 to-blue-500";
-
-    const glowColor =
-      pct >= 90 ? "shadow-red-500/50" :
-      pct >= 70 ? "shadow-orange-500/40" :
-      pct >= 50 ? "shadow-yellow-500/30" :
-      "shadow-green-500/20";
+    let barColor = "from-green-600 via-cyan-500 to-blue-500";
+    if (pct >= 90) barColor = "from-red-600 via-orange-500 to-pink-500";
+    else if (pct >= 70) barColor = "from-orange-600 via-yellow-500 to-amber-500";
+    else if (pct >= 50) barColor = "from-yellow-600 via-green-500 to-emerald-500";
 
     return (
-      <div className="w-full bg-gray-800 rounded-full h-2.5 overflow-hidden border border-gray-700/50">
+      <div className="w-full bg-gray-900 rounded-full h-3 overflow-hidden border border-gray-700/50 relative">
         <div
-          className={`h-full rounded-full transition-all duration-700 ease-out bg-gradient-to-r ${barColor} shadow-lg ${glowColor} relative`}
-          style={{ width: `${pct}%` }}
+          className={`h-full rounded-full transition-all duration-700 bg-gradient-to-r ${barColor} relative`}
+          style={{ width: `${pct}%`, boxShadow: `0 0 15px currentColor` }}
         >
-          {/* Animated Shine Effect */}
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-[shimmer_2s_infinite]" />
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent" style={{ animation: 'shimmer 2s infinite linear', transform: 'skewX(-20deg)' }} />
         </div>
       </div>
     );
   };
 
-  // ✅ NEW: Gacha Summon Function
+  // ✅ NEW: Gacha Summon
   const triggerGacha = () => {
     setGachaOpen(true);
     setGachaResult(null);
-
     setTimeout(() => {
       if (weapons.length > 0) {
-        const randomWeapon = weapons[Math.floor(Math.random() * weapons.length)];
-        setGachaResult(randomWeapon);
+        setGachaResult(weapons[Math.floor(Math.random() * weapons.length)]);
       }
     }, 1800);
   };
 
-  // ✅ NEW: Slash Easter Egg Handlers
-  const handleMouseDown = (e: any) => {
-    mouseStart.current = { x: e.clientX, y: e.clientY };
-  };
-
+  // ✅ NEW: Slash Easter Egg
+  const handleMouseDown = (e: any) => { mouseStart.current = { x: e.clientX, y: e.clientY }; };
   const handleMouseUp = (e: any) => {
     const dx = e.clientX - mouseStart.current.x;
     const dy = e.clientY - mouseStart.current.y;
-
-    // Diagonal swipe detection (150px threshold)
     if (Math.abs(dx) > 150 && Math.abs(dy) > 150) {
       setShowSlash(true);
       setTimeout(() => setShowSlash(false), 500);
@@ -282,9 +231,9 @@ export default function WeaponsPage() {
       {/* ✅ NEW: Slash Easter Egg Overlay */}
       {showSlash && (
         <div className="fixed inset-0 z-[300] pointer-events-none overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-red-500 to-transparent opacity-90 rotate-[-45deg] animate-[slashAnim_0.4s_ease-out_forwards]" />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-red-500 to-transparent opacity-90 rotate-[-45deg]" style={{ animation: 'slashAnim 0.4s ease-out forwards' }} />
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-6xl font-black text-white drop-shadow-[0_0_20px_rgba(239,68,68,1)] animate-[fadeIn_0.3s_ease-out]">
+            <div className="text-4xl md:text-6xl font-black text-white drop-shadow-[0_0_20px_rgba(239,68,68,1)]" style={{ animation: 'fadeIn 0.3s ease-out' }}>
               Domain Expanded: Neural Ninjas Arsenal
             </div>
           </div>
@@ -292,92 +241,53 @@ export default function WeaponsPage() {
       )}
 
       <div className="max-w-5xl mx-auto">
-        {/* Header */}
         <div className="text-center mb-6 pt-4">
           <h1 className="text-4xl md:text-5xl font-black bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500 bg-clip-text text-transparent tracking-tight mb-2">
             ⚔️ Manga Arsenal
           </h1>
-          <p className="text-sm text-gray-400">
-            Browse 90+ Iconic Weapons • Take the Quiz • Battle Simulator
-          </p>
+          <p className="text-sm text-gray-400">Browse 90+ Iconic Weapons • Take the Quiz • Battle Simulator</p>
         </div>
 
         {/* ✅ NEW: Gacha Summon Button */}
         <div className="flex justify-center mb-6">
-          <button
-            onClick={triggerGacha}
-            className="px-8 py-4 bg-gradient-to-r from-red-600 via-orange-600 to-yellow-600 hover:from-red-500 hover:via-orange-500 hover:to-yellow-500 text-white font-black rounded-xl shadow-lg shadow-red-500/40 transition-all hover:scale-105 flex items-center gap-3 border border-red-400/30"
-          >
-            <Sparkles className="w-5 h-5" />
-            ✨ Summon Cursed Weapon
+          <button onClick={triggerGacha} className="px-8 py-4 bg-gradient-to-r from-red-600 via-orange-600 to-yellow-600 hover:from-red-500 hover:via-orange-500 hover:to-yellow-500 text-white font-black rounded-xl shadow-lg shadow-red-500/40 transition-all hover:scale-105 flex items-center gap-3 border border-red-400/30">
+            <Sparkles className="w-5 h-5" /> ✨ Summon Cursed Weapon
           </button>
         </div>
 
         {/* Tabs */}
         <div className="flex gap-2 mb-6 justify-center flex-wrap">
           {(["database", "quiz", "battle"] as Tab[]).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-6 py-3 rounded-xl font-bold text-sm uppercase tracking-wider transition-all ${
-                activeTab === tab
-                  ? "bg-gradient-to-r from-red-600 to-orange-600 text-white shadow-lg shadow-red-500/30"
-                  : "bg-gray-900/60 text-gray-400 hover:text-white border border-gray-800"
-              }`}
-            >
-              {tab === "database" && "🗡️ "}
-              {tab === "quiz" && "🎯 "}
-              {tab === "battle" && "💥 "}
-              {tab}
+            <button key={tab} onClick={() => setActiveTab(tab)} className={`px-6 py-3 rounded-xl font-bold text-sm uppercase tracking-wider transition-all ${activeTab === tab ? "bg-gradient-to-r from-red-600 to-orange-600 text-white shadow-lg shadow-red-500/30" : "bg-gray-900/60 text-gray-400 hover:text-white border border-gray-800"}`}>
+              {tab === "database" && "️ "}{tab === "quiz" && " "}{tab === "battle" && " "}{tab}
             </button>
           ))}
         </div>
 
-        {/* ✅ ADSTERRA NATIVE BANNER (TOP - HIGH VISIBILITY) */}
+        {/* ADSTERRA NATIVE BANNER */}
         <div className="w-full flex justify-center my-4 min-h-[100px] bg-gray-900/30 rounded-xl border border-gray-800/50 overflow-hidden">
-          <Script
-            src="https://pl31218662.profitableratecpmnetwork.com/fb65e70ebb201c3fe329914b0de99570/invoke.js"
-            strategy="afterInteractive"
-            async
-            data-cfasync="false"
-          />
+          <Script src="https://pl31218662.profitableratecpmnetwork.com/fb65e70ebb201c3fe329914b0de99570/invoke.js" strategy="afterInteractive" async data-cfasync="false" />
           <div id="container-fb65e70ebb201c3fe329914b0de99570"></div>
         </div>
 
         {/* DATABASE TAB */}
         {activeTab === "database" && (
           <div className="space-y-6">
-            {/* Search */}
             <div className="relative">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => handleSearch(e.target.value)}
-                placeholder="Search weapons, characters, or anime..."
-                className="w-full bg-gray-900/80 border border-gray-800 rounded-xl pl-12 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-red-500 transition"
-              />
+              <input type="text" value={searchQuery} onChange={(e) => handleSearch(e.target.value)} placeholder="Search weapons, characters, or anime..." className="w-full bg-gray-900/80 border border-gray-800 rounded-xl pl-12 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-red-500 transition" />
             </div>
 
             {isDatabaseLoading ? (
               <div className="flex flex-col items-center justify-center py-20 animate-in fade-in">
                 <div className="w-16 h-16 border-4 border-red-500 border-t-transparent rounded-full animate-spin mb-4"></div>
                 <p className="text-red-400 font-bold animate-pulse text-lg">⚔️ Forging the Arsenal...</p>
-                <p className="text-xs text-gray-500 mt-2 text-center max-w-xs">
-                  (Fetching 90+ iconic weapons from the Neo4j Cloud Database)
-                </p>
               </div>
             ) : (
               <>
-                {/* ✅ ENHANCED: Weapons Grid with Forge & Shatter Effects */}
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {weapons.map((w) => (
-                    <div
-                      key={w.name}
-                      onClick={() => setSelectedWeapon(w)}
-                      className="bg-gray-900/60 backdrop-blur-sm rounded-xl border border-gray-800 hover:border-red-500/50 p-4 cursor-pointer transition-all hover:scale-[1.02] group relative overflow-hidden"
-                    >
-                      {/* ✅ NEW: Hover Spark Effect */}
+                    <div key={w.name} onClick={() => setSelectedWeapon(w)} className="bg-gray-900/60 backdrop-blur-sm rounded-xl border border-gray-800 hover:border-red-500/50 p-4 cursor-pointer transition-all hover:scale-[1.02] group relative overflow-hidden">
                       <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-red-500/20 to-transparent rounded-full blur-2xl animate-pulse" />
                         <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-orange-500/20 to-transparent rounded-full blur-xl animate-pulse" style={{ animationDelay: '0.5s' }} />
@@ -412,38 +322,15 @@ export default function WeaponsPage() {
                   ))}
                 </div>
 
-                {/* ✅ ADSTERRA 320x50 MOBILE BANNER (BOTTOM OF DATABASE) */}
+                {/* ADSTERRA MOBILE BANNER */}
                 <div className="w-full flex justify-center my-8">
                   <Script id="adsterra-mobile-config" strategy="afterInteractive">
-                    {`
-                      atOptions = {
-                        'key' : '5857abbf9515619a371c38758a4e2461',
-                        'format' : 'iframe',
-                        'height' : 50,
-                        'width' : 320,
-                        'params' : {}
-                      };
-                    `}
+                    {`atOptions = {'key' : '5857abbf9515619a371c38758a4e2461', 'format' : 'iframe', 'height' : 50, 'width' : 320, 'params' : {}};`}
                   </Script>
-                  <Script
-                    src="https://www.highrevenueformat.com/5857abbf9515619a371c38758a4e2461/invoke.js"
-                    strategy="afterInteractive"
-                  />
+                  <Script src="https://www.highrevenueformat.com/5857abbf9515619a371c38758a4e2461/invoke.js" strategy="afterInteractive" />
                 </div>
 
-                {weapons.length === 0 && !searchQuery && (
-                  <div className="text-center py-12 text-gray-500">
-                    <Sword className="w-16 h-16 mx-auto mb-4 opacity-30" />
-                    <p>No weapons found. Run the seed script first!</p>
-                  </div>
-                )}
-
-                {weapons.length === 0 && searchQuery && (
-                  <div className="text-center py-12 text-gray-500">
-                    <Search className="w-16 h-16 mx-auto mb-4 opacity-30" />
-                    <p>No weapons match your search.</p>
-                  </div>
-                )}
+                {weapons.length === 0 && <div className="text-center py-12 text-gray-500"><Search className="w-16 h-16 mx-auto mb-4 opacity-30" /><p>No weapons match your search.</p></div>}
               </>
             )}
           </div>
@@ -459,31 +346,17 @@ export default function WeaponsPage() {
                   <h2 className="text-2xl font-black text-white">What's Your Manga Weapon?</h2>
                   <p className="text-sm text-gray-400 mt-1">Answer 4 questions to discover your weapon</p>
                   <div className="flex gap-1 justify-center mt-4">
-                    {quizQuestions.map((_, i) => (
-                      <div key={i} className={`w-8 h-1 rounded ${i <= quizStep ? "bg-red-500" : "bg-gray-700"}`} />
-                    ))}
+                    {quizQuestions.map((_, i) => (<div key={i} className={`w-8 h-1 rounded ${i <= quizStep ? "bg-red-500" : "bg-gray-700"}`} />))}
                   </div>
                 </div>
-
                 {loading ? (
-                  <div className="text-center py-8">
-                    <div className="w-12 h-12 border-4 border-red-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-                    <p className="text-gray-300">Forging your weapon...</p>
-                  </div>
+                  <div className="text-center py-8"><div className="w-12 h-12 border-4 border-red-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" /><p className="text-gray-300">Forging your weapon...</p></div>
                 ) : (
                   <div>
-                    <h3 className="text-lg font-bold text-white mb-4 text-center">
-                      {quizQuestions[quizStep].q}
-                    </h3>
+                    <h3 className="text-lg font-bold text-white mb-4 text-center">{quizQuestions[quizStep].q}</h3>
                     <div className="grid grid-cols-2 gap-3">
                       {quizQuestions[quizStep].options.map((opt) => (
-                        <button
-                          key={opt}
-                          onClick={() => handleQuizAnswer(quizQuestions[quizStep].key, opt)}
-                          className="p-4 bg-gray-800 hover:bg-red-900/40 border border-gray-700 hover:border-red-500/50 rounded-xl text-white font-medium transition-all text-sm"
-                        >
-                          {opt}
-                        </button>
+                        <button key={opt} onClick={() => handleQuizAnswer(quizQuestions[quizStep].key, opt)} className="p-4 bg-gray-800 hover:bg-red-900/40 border border-gray-700 hover:border-red-500/50 rounded-xl text-white font-medium transition-all text-sm">{opt}</button>
                       ))}
                     </div>
                   </div>
@@ -491,57 +364,35 @@ export default function WeaponsPage() {
               </div>
             ) : (
               <div className="relative">
-                <div
-                  id="weapon-share-card"
-                  className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-red-900/60 via-orange-900/60 to-yellow-900/60 border-2 border-red-500/50 shadow-2xl shadow-red-500/30 p-8"
-                >
+                <div id="weapon-share-card" className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-red-900/60 via-orange-900/60 to-yellow-900/60 border-2 border-red-500/50 shadow-2xl shadow-red-500/30 p-8">
                   <div className="absolute inset-0 opacity-30">
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.4),transparent_50%)] animate-pulse" />
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(255,200,100,0.3),transparent_50%)]" />
                   </div>
-
-                  <div className="absolute inset-0 opacity-20 pointer-events-none bg-[linear-gradient(115deg,transparent_20%,rgba(255,255,255,0.5)_40%,rgba(255,255,255,0.7)_50%,rgba(255,255,255,0.5)_60%,transparent_80%)] animate-[shimmer_3s_infinite_linear]" />
+                  <div className="absolute inset-0 opacity-20 pointer-events-none bg-[linear-gradient(115deg,transparent_20%,rgba(255,255,255,0.5)_40%,rgba(255,255,255,0.7)_50%,rgba(255,255,255,0.5)_60%,transparent_80%)]" style={{ animation: 'shimmer 3s infinite linear' }} />
 
                   <div className="relative z-10">
                     <div className="text-center mb-6">
                       <div className="inline-flex items-center gap-2 px-4 py-2 bg-black/40 backdrop-blur-sm rounded-full border border-red-500/50 mb-3">
                         <span className="text-xs font-bold text-red-300 uppercase tracking-wider">⚔️ My Manga Weapon</span>
                       </div>
-                      <h2 className="text-3xl font-black text-white mb-1 leading-tight">
-                        {quizResult.name}
-                      </h2>
+                      <h2 className="text-3xl font-black text-white mb-1 leading-tight">{quizResult.name}</h2>
                       <p className="text-sm text-orange-300">{quizResult.type}</p>
                     </div>
-
                     <div className="my-6 flex justify-center">
                       {quizResult.image_url ? (
                         <div className="relative w-40 h-40 rounded-2xl overflow-hidden border-4 border-red-500/50 shadow-2xl shadow-red-500/40">
-                          <img
-                            src={quizResult.image_url}
-                            alt={quizResult.name}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              e.currentTarget.style.display = 'none';
-                              e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                            }}
-                          />
-                          <div className="hidden absolute inset-0 bg-gradient-to-br from-red-900 to-orange-900 flex items-center justify-center text-6xl">
-                            ⚔️
-                          </div>
+                          <img src={quizResult.image_url} alt={quizResult.name} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />
+                          <div className="hidden absolute inset-0 bg-gradient-to-br from-red-900 to-orange-900 flex items-center justify-center text-6xl">️</div>
                         </div>
                       ) : (
-                        <div className="w-40 h-40 rounded-2xl bg-gradient-to-br from-red-900 to-orange-900 flex items-center justify-center text-6xl border-4 border-red-500/50 shadow-2xl">
-                          ⚔️
-                        </div>
+                        <div className="w-40 h-40 rounded-2xl bg-gradient-to-br from-red-900 to-orange-900 flex items-center justify-center text-6xl border-4 border-red-500/50 shadow-2xl">⚔️</div>
                       )}
                     </div>
-
                     <div className="grid grid-cols-3 gap-3 mb-6">
                       <div className="p-3 bg-black/40 backdrop-blur-sm rounded-xl border border-red-500/30 text-center">
                         <div className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">POWER</div>
-                        <div className={`text-2xl font-black ${getPowerColor(quizResult.power)}`}>
-                          {quizResult.power}
-                        </div>
+                        <div className={`text-2xl font-black ${getPowerColor(quizResult.power)}`}>{quizResult.power}</div>
                       </div>
                       <div className="p-3 bg-black/40 backdrop-blur-sm rounded-xl border border-orange-500/30 text-center">
                         <div className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">SPEED</div>
@@ -552,55 +403,24 @@ export default function WeaponsPage() {
                         <div className="text-2xl font-black text-purple-400">{quizResult.hax}</div>
                       </div>
                     </div>
-
                     <div className="p-4 bg-gradient-to-r from-black/40 to-gray-900/40 backdrop-blur-sm rounded-xl border border-white/10 mb-4">
-                      <p className="text-sm text-white italic text-center leading-relaxed">
-                        {getFunnyMessage(quizResult)}
-                      </p>
+                      <p className="text-sm text-white italic text-center leading-relaxed">{getFunnyMessage(quizResult)}</p>
                     </div>
-
                     <div className="p-3 bg-black/30 rounded-xl border border-white/10 mb-3">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Zap className="w-3 h-3 text-yellow-400" />
-                        <span className="text-[10px] text-gray-400 uppercase">Special Ability</span>
-                      </div>
+                      <div className="flex items-center gap-2 mb-1"><Zap className="w-3 h-3 text-yellow-400" /><span className="text-[10px] text-gray-400 uppercase">Special Ability</span></div>
                       <p className="text-xs text-white font-medium">{quizResult.ability}</p>
                     </div>
-
                     <div className="pt-4 border-t border-white/10 text-center">
-                      <div className="flex items-center justify-center gap-2 mb-1">
-                        <span className="text-xl">🎌</span>
-                        <span className="text-sm font-bold text-white">MangaVerse</span>
-                      </div>
+                      <div className="flex items-center justify-center gap-2 mb-1"><span className="text-xl">🎌</span><span className="text-sm font-bold text-white">MangaVerse</span></div>
                       <p className="text-[10px] text-gray-400">manga-ta.vercel.app/weapons</p>
                     </div>
                   </div>
                 </div>
-
                 <div className="mt-6 flex gap-3">
-                  <button
-                    onClick={handleShareWeapon}
-                    disabled={isCapturing}
-                    className="flex-1 py-4 bg-gradient-to-r from-red-600 via-orange-600 to-yellow-600 hover:from-red-500 hover:via-orange-500 hover:to-yellow-500 text-white font-bold rounded-xl transition shadow-lg shadow-red-500/30 flex items-center justify-center gap-2"
-                  >
-                    {isCapturing ? (
-                      <>
-                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        Creating Card...
-                      </>
-                    ) : (
-                      <>
-                        <Share2 className="w-5 h-5" />
-                        Share Weapon
-                      </>
-                    )}
+                  <button onClick={handleShareWeapon} disabled={isCapturing} className="flex-1 py-4 bg-gradient-to-r from-red-600 via-orange-600 to-yellow-600 hover:from-red-500 hover:via-orange-500 hover:to-yellow-500 text-white font-bold rounded-xl transition shadow-lg shadow-red-500/30 flex items-center justify-center gap-2">
+                    {isCapturing ? (<><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />Creating Card...</>) : (<><Share2 className="w-5 h-5" />Share Weapon</>)}
                   </button>
-                  <button
-                    onClick={resetQuiz}
-                    className="px-6 py-4 bg-gray-800 hover:bg-gray-700 text-white font-bold rounded-xl transition border border-gray-700"
-                  >
-                    Try Again
-                  </button>
+                  <button onClick={resetQuiz} className="px-6 py-4 bg-gray-800 hover:bg-gray-700 text-white font-bold rounded-xl transition border border-gray-700">Try Again</button>
                 </div>
               </div>
             )}
@@ -612,35 +432,17 @@ export default function WeaponsPage() {
           <div className="max-w-2xl mx-auto space-y-6">
             <div className="bg-gray-900/60 backdrop-blur-sm rounded-2xl border border-gray-800 p-6">
               <h2 className="text-2xl font-black text-white text-center mb-6">💥 Weapon vs Weapon</h2>
-
               <div className="grid md:grid-cols-2 gap-4 mb-6">
                 <div>
                   <label className="text-xs text-gray-400 uppercase mb-1 block">Weapon 1</label>
-                  <input
-                    type="text"
-                    value={battleW1}
-                    onChange={(e) => setBattleW1(e.target.value)}
-                    placeholder="e.g., Rasengan"
-                    className="w-full bg-gray-950 border border-gray-800 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-red-500"
-                  />
+                  <input type="text" value={battleW1} onChange={(e) => setBattleW1(e.target.value)} placeholder="e.g., Ryujin Jakka" className="w-full bg-gray-950 border border-gray-800 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-red-500" />
                 </div>
                 <div>
                   <label className="text-xs text-gray-400 uppercase mb-1 block">Weapon 2</label>
-                  <input
-                    type="text"
-                    value={battleW2}
-                    onChange={(e) => setBattleW2(e.target.value)}
-                    placeholder="e.g., Chidori"
-                    className="w-full bg-gray-950 border border-gray-800 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-red-500"
-                  />
+                  <input type="text" value={battleW2} onChange={(e) => setBattleW2(e.target.value)} placeholder="e.g., Excalibur" className="w-full bg-gray-950 border border-gray-800 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-red-500" />
                 </div>
               </div>
-
-              <button
-                onClick={handleBattle}
-                disabled={loading || !battleW1 || !battleW2}
-                className="w-full py-4 bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 disabled:opacity-50 text-white font-bold rounded-xl transition shadow-lg shadow-red-500/30"
-              >
+              <button onClick={handleBattle} disabled={loading || !battleW1 || !battleW2} className="w-full py-4 bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 disabled:opacity-50 text-white font-bold rounded-xl transition shadow-lg shadow-red-500/30">
                 {loading ? "⚔️ Fighting..." : "⚔️ START BATTLE"}
               </button>
             </div>
@@ -649,19 +451,22 @@ export default function WeaponsPage() {
               <div className="flex flex-col items-center justify-center py-16 animate-in fade-in">
                 <div className="w-16 h-16 border-4 border-red-500 border-t-transparent rounded-full animate-spin mb-4"></div>
                 <p className="text-red-400 font-bold animate-pulse text-lg">⚔️ Simulating Epic Battle...</p>
-                <p className="text-xs text-gray-500 mt-2 text-center max-w-xs">
-                  (AI is analyzing power, speed, and hax from the database...)
-                </p>
               </div>
             )}
 
-            {battleResult && !loading && (
+            {/* ✅ SUCCESS RESULT */}
+            {battleResult && !loading && battleResult.status === "success" && (
               <div className="bg-gradient-to-br from-red-900/40 to-orange-900/40 rounded-2xl border border-red-500/30 p-6 text-center animate-in fade-in zoom-in duration-500">
                 <div className="text-4xl mb-4">🏆</div>
                 <h3 className="text-3xl font-black text-white mb-2">{battleResult.winner}</h3>
-                <p className="text-sm text-red-300 mb-4">
-                  Wins with {battleResult.win_chance}% probability!
-                </p>
+                <p className="text-sm text-red-300 mb-4">Wins with {battleResult.win_chance}% probability!</p>
+
+                {/* ✅ NEW: AI Verdict */}
+                {battleResult.verdict && (
+                  <div className="mb-6 p-4 bg-black/40 rounded-xl border border-red-500/30 italic text-gray-200 text-sm">
+                    "{battleResult.verdict}"
+                  </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-4 mb-4">
                   <div className={`p-4 rounded-xl border ${battleResult.winner === battleResult.weapon1.name ? "bg-green-900/30 border-green-500/50" : "bg-gray-900/50 border-gray-700"}`}>
@@ -675,13 +480,18 @@ export default function WeaponsPage() {
                     <p className="text-lg font-black text-red-400 mt-2">Score: {battleResult.score2}</p>
                   </div>
                 </div>
+                <button onClick={() => setBattleResult(null)} className="px-6 py-2 bg-gray-800 hover:bg-gray-700 text-white font-bold rounded-lg transition">New Battle</button>
+              </div>
+            )}
 
-                <button
-                  onClick={() => setBattleResult(null)}
-                  className="px-6 py-2 bg-gray-800 hover:bg-gray-700 text-white font-bold rounded-lg transition"
-                >
-                  New Battle
-                </button>
+            {/* ✅ ERROR RESULT */}
+            {battleResult && !loading && battleResult.status === "error" && (
+              <div className="bg-red-900/20 border border-red-500/30 rounded-2xl p-6 text-center">
+                <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-3" />
+                <h3 className="text-xl font-bold text-red-400 mb-2">️ Weapon Not Found!</h3>
+                <p className="text-sm text-gray-300 mb-4">{battleResult.error || "One or both weapons not in database."}</p>
+                <p className="text-xs text-gray-500">Try: <span className="text-cyan-400">"Ryujin Jakka"</span>, <span className="text-cyan-400">"Excalibur"</span>, or <span className="text-cyan-400">"Inverted Spear of Heaven"</span></p>
+                <button onClick={() => setBattleResult(null)} className="mt-4 px-6 py-2 bg-gray-800 hover:bg-gray-700 text-white font-bold rounded-lg transition">Try Again</button>
               </div>
             )}
           </div>
@@ -691,51 +501,32 @@ export default function WeaponsPage() {
         {selectedWeapon && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
             <div className="relative w-full max-w-md bg-gradient-to-br from-gray-900 to-gray-950 rounded-2xl border border-red-500/30 p-6 shadow-2xl">
-              <button
-                onClick={() => setSelectedWeapon(null)}
-                className="absolute top-3 right-3 p-2 bg-black/80 hover:bg-red-600 rounded-full border border-white/20 text-white transition"
-              >
-                <X className="w-5 h-5" />
-              </button>
-
+              <button onClick={() => setSelectedWeapon(null)} className="absolute top-3 right-3 p-2 bg-black/80 hover:bg-red-600 rounded-full border border-white/20 text-white transition"><X className="w-5 h-5" /></button>
               <h2 className="text-2xl font-black text-white mb-1">{selectedWeapon.name}</h2>
               <p className="text-sm text-red-400 mb-1">{selectedWeapon.owner}</p>
               <p className="text-xs text-gray-500 mb-4">{selectedWeapon.anime} • {selectedWeapon.type}</p>
-
               <div className="space-y-3 mb-4">
                 <div>
-                  <div className="flex justify-between text-xs mb-1">
-                    <span className="text-gray-400">⚔️ Power</span>
-                    <span className={`font-bold ${getPowerColor(selectedWeapon.power)}`}>{selectedWeapon.power}/1000</span>
-                  </div>
+                  <div className="flex justify-between text-xs mb-1"><span className="text-gray-400">️ Power</span><span className={`font-bold ${getPowerColor(selectedWeapon.power)}`}>{selectedWeapon.power}/1000</span></div>
                   {getStatBar(selectedWeapon.power, 1000)}
                 </div>
                 <div>
-                  <div className="flex justify-between text-xs mb-1">
-                    <span className="text-gray-400">💨 Speed</span>
-                    <span className="font-bold text-cyan-400">{selectedWeapon.speed}/100</span>
-                  </div>
+                  <div className="flex justify-between text-xs mb-1"><span className="text-gray-400">💨 Speed</span><span className="font-bold text-cyan-400">{selectedWeapon.speed}/100</span></div>
                   {getStatBar(selectedWeapon.speed)}
                 </div>
                 <div>
-                  <div className="flex justify-between text-xs mb-1">
-                    <span className="text-gray-400">🌀 Hax</span>
-                    <span className="font-bold text-purple-400">{selectedWeapon.hax}/100</span>
-                  </div>
+                  <div className="flex justify-between text-xs mb-1"><span className="text-gray-400">🌀 Hax</span><span className="font-bold text-purple-400">{selectedWeapon.hax}/100</span></div>
                   {getStatBar(selectedWeapon.hax)}
                 </div>
               </div>
-
               <div className="p-3 bg-black/30 rounded-lg border border-white/10 mb-3">
                 <p className="text-xs text-gray-400 uppercase mb-1">Special Ability</p>
                 <p className="text-sm text-white">{selectedWeapon.ability}</p>
               </div>
-
               <div className="p-3 bg-black/30 rounded-lg border border-white/10 mb-3">
                 <p className="text-xs text-gray-400 uppercase mb-1">Weakness</p>
                 <p className="text-sm text-red-300">{selectedWeapon.weakness}</p>
               </div>
-
               <div className="p-3 bg-black/30 rounded-lg border border-white/10">
                 <p className="text-xs text-gray-400 uppercase mb-1">Lore</p>
                 <p className="text-sm text-gray-300 italic">{selectedWeapon.lore}</p>
@@ -749,11 +540,8 @@ export default function WeaponsPage() {
       {gachaOpen && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[250] flex items-center justify-center p-4">
           <div className="bg-gradient-to-br from-gray-900 via-red-950/50 to-gray-900 border-2 border-red-500/40 p-8 rounded-3xl max-w-md w-full text-center relative shadow-[0_0_60px_rgba(239,68,68,0.4)]">
-            <button onClick={() => setGachaOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white">
-              <X />
-            </button>
+            <button onClick={() => setGachaOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white"><X /></button>
             <h3 className="text-2xl font-black text-white mb-6">Summoning Cursed Artifact...</h3>
-
             {!gachaResult ? (
               <div className="py-8">
                 <div className="w-24 h-24 mx-auto border-4 border-red-500 border-t-transparent rounded-full animate-spin mb-4"></div>
@@ -765,9 +553,7 @@ export default function WeaponsPage() {
                   <span className="text-xs font-bold uppercase tracking-widest text-amber-400">✨ Drop Unlocked!</span>
                   <h4 className="text-3xl font-black text-red-400 mt-2">{gachaResult.name}</h4>
                   <p className="text-sm text-gray-300 mt-1">{gachaResult.type}</p>
-                  <div className="mt-4 text-sm font-bold text-white bg-red-950/60 py-2 rounded-lg border border-red-900/60">
-                    POWER INDEX: {gachaResult.power}
-                  </div>
+                  <div className="mt-4 text-sm font-bold text-white bg-red-950/60 py-2 rounded-lg border border-red-900/60">POWER INDEX: {gachaResult.power}</div>
                 </div>
               </div>
             )}
@@ -775,11 +561,10 @@ export default function WeaponsPage() {
         </div>
       )}
 
-      {/* ✅ ENHANCED CSS Animations */}
       <style jsx global>{`
         @keyframes shimmer {
-          0% { transform: translateX(-150%) skewX(-15deg); }
-          100% { transform: translateX(150%) skewX(-15deg); }
+          0% { transform: translateX(-150%) skewX(-20deg); }
+          100% { transform: translateX(150%) skewX(-20deg); }
         }
         @keyframes slashAnim {
           0% { transform: rotate(-45deg) translateY(-100%); opacity: 1; }
