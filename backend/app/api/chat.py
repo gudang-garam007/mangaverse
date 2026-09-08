@@ -1,12 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from typing import List, Optional
 from app.db.neo4j import neo4j_db
 from app.services.llm_service import llm_service
 from loguru import logger
-import asyncio
 
-router = APIRouter(prefix="/api/chat", tags=["Character Chat"])
+router = APIRouter(prefix="/chat", tags=["Character Chat"])
 
 
 class MessageHistory(BaseModel):
@@ -22,7 +21,7 @@ class ChatRequest(BaseModel):
 
 @router.post("/message")
 async def chat_with_character(request: ChatRequest):
-    logger.info(f"📩 Chat request for: {request.character_name}")
+    logger.info(f"📨 Chat request for: {request.character_name}")
 
     # 1. Fetch character from Neo4j
     query = """
@@ -36,20 +35,25 @@ async def chat_with_character(request: ChatRequest):
 
     try:
         results = await neo4j_db.execute_query(query, {"name": request.character_name})
+        logger.info(f"✅ Database query successful, found {len(results) if results else 0} results")
     except Exception as e:
         logger.error(f"❌ Database error: {e}")
-        raise HTTPException(status_code=500, detail="Database connection failed")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-    # 2. Character not found - Use smart fallback
-    if not results:
-        logger.warning(f"⚠️ Character '{request.character_name}' not in DB. Using fallback.")
+    # 2. Character NOT found - Use SMART FALLBACK (never show error to user)
+    if not results or len(results) == 0:
+        logger.warning(f"⚠️ Character '{request.character_name}' not in DB. Using AI fallback.")
         char_name = request.character_name
         universe = "Anime/Manga"
         image_url = None
+
+        # Smart fallback prompt - LLM already knows these characters
         system_prompt = (
             f"You are {char_name}, a popular anime/manga character. "
-            "Stay in character. Use asterisks for actions (*smiles*). "
-            "Keep responses under 130 words. Be engaging and dramatic."
+            "Stay strictly in character at all times. "
+            "Use asterisks for physical actions and expressions (*smiles*, *crosses arms*). "
+            "Keep responses engaging, dramatic, and under 130 words. "
+            "Speak naturally with character-appropriate tone and catchphrases."
         )
     else:
         char = results[0]
@@ -60,21 +64,25 @@ async def chat_with_character(request: ChatRequest):
 
         if custom_prompt:
             system_prompt = custom_prompt
+            logger.info(f"✅ Using custom prompt from DB for {char_name}")
         else:
+            # Fallback if no custom prompt in DB
             system_prompt = (
                 f"You are {char_name} from {universe}. "
-                f"Background: {char['bio'] or 'A legendary character'}. "
-                "Stay in character. Use asterisks for actions. Keep replies under 130 words."
+                f"Background: {char['bio'] or 'A legendary anime/manga character'}. "
+                "Stay in character. Use asterisks for actions (*action*). "
+                "Keep replies under 130 words. Be engaging and authentic."
             )
 
-    # 3. Prepare conversation history
+    # 3. Prepare conversation history (last 6 messages)
     formatted_messages = []
     for h in request.history[-6:]:
         formatted_messages.append({"role": h.role, "content": h.content})
     formatted_messages.append({"role": "user", "content": request.message})
 
-    # 4. Generate response
+    # 4. Generate AI response
     try:
+        logger.info(f" Generating response for {char_name}...")
         reply = await llm_service.generate(
             prompt=request.message,
             system_prompt=system_prompt,
@@ -83,14 +91,17 @@ async def chat_with_character(request: ChatRequest):
             temperature=0.85
         )
 
+        logger.info(f"✅ Response generated successfully")
+
         return {
             "character": char_name,
             "universe": universe,
             "image_url": image_url,
             "reply": reply,
-            "status": "success"
+            "status": "success",
+            "from_db": bool(results and len(results) > 0)
         }
 
     except Exception as e:
-        logger.error(f"❌ LLM error: {e}")
-        raise HTTPException(status_code=500, detail=f"AI service error: {str(e)}")
+        logger.error(f"❌ LLM generation failed: {e}")
+        raise HTTPException(status_code=500, detail=f"AI error: {str(e)}")

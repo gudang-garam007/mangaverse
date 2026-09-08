@@ -27,31 +27,39 @@ export default function ChatPage() {
   const [loadingChars, setLoadingChars] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Fetch characters from Tenrai API
+  // Fetch characters from CORRECT Tenrai API
   useEffect(() => {
     const fetchCharacters = async () => {
       try {
         setLoadingChars(true);
-        const res = await fetch("https://tenrai.moe/api/v1/characters?limit=120");
+        // ✅ CORRECT API URL
+        const res = await fetch("https://api.tenrai.org/v1/characters?limit=120");
+
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+
         const data = await res.json();
 
         const chars: Character[] = data.data?.map((c: any) => ({
-          id: c.id,
+          id: c.id?.toString() || Math.random().toString(),
           name: c.attributes?.name || c.attributes?.names?.en || "Unknown",
           universe: c.attributes?.media?.nodes?.[0]?.title || "Unknown",
           image_url: c.attributes?.image?.large || c.attributes?.image?.original || ""
         })) || [];
 
+        logger.info(`✅ Loaded ${chars.length} characters from Tenrai API`);
         setCharacters(chars);
         setFilteredCharacters(chars);
       } catch (err) {
-        console.error("Failed to fetch characters:", err);
-        // Fallback characters if API fails
+        console.error("❌ Failed to fetch characters:", err);
+        // Fallback characters
         const fallback: Character[] = [
           { id: "1", name: "Monkey D. Luffy", universe: "One Piece", image_url: "" },
           { id: "2", name: "Naruto Uzumaki", universe: "Naruto", image_url: "" },
           { id: "3", name: "Son Goku", universe: "Dragon Ball", image_url: "" },
-          { id: "4", name: "Satoru Gojo", universe: "Jujutsu Kaisen", image_url: "" }
+          { id: "4", name: "Satoru Gojo", universe: "Jujutsu Kaisen", image_url: "" },
+          { id: "5", name: "Ichigo Kurosaki", universe: "Bleach", image_url: "" }
         ];
         setCharacters(fallback);
         setFilteredCharacters(fallback);
@@ -65,18 +73,18 @@ export default function ChatPage() {
 
   // Filter characters
   useEffect(() => {
-    if (searchQuery) {
+    if (searchQuery.trim()) {
       const filtered = characters.filter(char =>
         char.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         char.universe.toLowerCase().includes(searchQuery.toLowerCase())
       );
       setFilteredCharacters(filtered);
     } else {
-      setFilteredCharacters(characters);
+      setFilteredCharacters(characters.slice(0, 50)); // Show first 50
     }
   }, [searchQuery, characters]);
 
-  // Auto-scroll
+  // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -97,7 +105,8 @@ export default function ChatPage() {
     setLoading(true);
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chat/message`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || window.location.origin;
+      const res = await fetch(`${apiUrl}/api/chat/message`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -107,9 +116,14 @@ export default function ChatPage() {
         })
       });
 
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.detail || `HTTP ${res.status}`);
+      }
+
       const data = await res.json();
 
-      if (res.ok && data.reply) {
+      if (data.reply) {
         const assistantMsg: Message = {
           role: "assistant",
           content: data.reply,
@@ -118,16 +132,13 @@ export default function ChatPage() {
         };
         setMessages(prev => [...prev, assistantMsg]);
       } else {
-        setMessages(prev => [...prev, {
-          role: "assistant",
-          content: `⚠️ ${data.detail || "Character unavailable"}`,
-          timestamp: new Date()
-        }]);
+        throw new Error("No reply received");
       }
     } catch (err: any) {
+      console.error("❌ Chat error:", err);
       setMessages(prev => [...prev, {
         role: "assistant",
-        content: `⚠️ Connection error: ${err.message}`,
+        content: `⚠️ Error: ${err.message || "Failed to get response"}`,
         timestamp: new Date()
       }]);
     } finally {
@@ -151,9 +162,9 @@ export default function ChatPage() {
         {/* Header */}
         <div className="text-center mb-6">
           <h1 className="text-4xl md:text-5xl font-black bg-gradient-to-r from-purple-400 via-pink-500 to-cyan-400 bg-clip-text text-transparent mb-2">
-             Character Chat
+            💬 Character Chat
           </h1>
-          <p className="text-gray-400 text-sm">Talk to your favorite anime characters in real-time</p>
+          <p className="text-gray-400 text-sm">Talk to your favorite anime characters</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-6 h-[calc(100vh-200px)]">
@@ -193,7 +204,7 @@ export default function ChatPage() {
                       alt={char.name}
                       className="w-10 h-10 rounded-full object-cover border-2 border-purple-500/30 flex-shrink-0"
                       onError={(e) => {
-                        (e.target as HTMLImageElement).src = `https://api.dicebear.com/9.0/bottts-neutral/svg?seed=${char.name}`;
+                        (e.target as HTMLImageElement).src = `https://api.dicebear.com/9.0/bottts-neutral/svg?seed=${char.name}&backgroundColor=1a1a2e`;
                       }}
                     />
                     <div className="flex-1 min-w-0">
@@ -218,7 +229,7 @@ export default function ChatPage() {
                       alt={selectedCharacter.name}
                       className="w-12 h-12 rounded-full object-cover border-2 border-purple-500"
                       onError={(e) => {
-                        (e.target as HTMLImageElement).src = `https://api.dicebear.com/9.0/bottts-neutral/svg?seed=${selectedCharacter.name}`;
+                        (e.target as HTMLImageElement).src = `https://api.dicebear.com/9.0/bottts-neutral/svg?seed=${selectedCharacter.name}&backgroundColor=1a1a2e`;
                       }}
                     />
                     <div>
@@ -249,15 +260,15 @@ export default function ChatPage() {
                           {/* Avatar */}
                           <img
                             src={msg.role === "user"
-                              ? `https://api.dicebear.com/9.0/avataaars/svg?seed=user`
-                              : msg.image_url || `https://api.dicebear.com/9.0/bottts-neutral/svg?seed=${selectedCharacter.name}`
+                              ? `https://api.dicebear.com/9.0/avataaars/svg?seed=user&backgroundColor=1a1a2e`
+                              : msg.image_url || `https://api.dicebear.com/9.0/bottts-neutral/svg?seed=${selectedCharacter.name}&backgroundColor=1a1a2e`
                             }
                             alt={msg.role}
                             className="w-10 h-10 rounded-full object-cover border-2 border-purple-500/30 flex-shrink-0"
                             onError={(e) => {
                               (e.target as HTMLImageElement).src = msg.role === "user"
-                                ? `https://api.dicebear.com/9.0/avataaars/svg?seed=user`
-                                : `https://api.dicebear.com/9.0/bottts-neutral/svg?seed=${selectedCharacter.name}`;
+                                ? `https://api.dicebear.com/9.0/avataaars/svg?seed=user&backgroundColor=1a1a2e`
+                                : `https://api.dicebear.com/9.0/bottts-neutral/svg?seed=${selectedCharacter.name}&backgroundColor=1a1a2e`;
                             }}
                           />
                           {/* Message Bubble */}
