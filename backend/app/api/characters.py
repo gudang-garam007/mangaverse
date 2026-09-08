@@ -10,7 +10,7 @@ router = APIRouter(prefix="/api/characters", tags=["Characters"])
 
 
 def clean_description(desc: str) -> str:
-    """Clean HTML, markdown, and format description properly"""
+    """Clean HTML, markdown, and format description properly with smart truncation"""
     if not desc:
         return "No description available."
 
@@ -33,9 +33,20 @@ def clean_description(desc: str) -> str:
     clean = re.sub(r'\s+', ' ', clean)
     clean = clean.strip()
 
-    # 6. Truncate if too long (max 400 chars for clean UI)
-    if len(clean) > 400:
-        clean = clean[:397] + "..."
+    # 6. ✅ SMART TRUNCATION: Complete sentence, no mid-word cut
+    if len(clean) > 450:
+        truncated = clean[:450]
+        last_period = truncated.rfind('.')
+
+        if last_period > 350:  # Agar reasonable range mein period hai
+            clean = truncated[:last_period + 1]  # Period ke saath cut karo
+        else:
+            # Warna last space par cut karo
+            last_space = truncated.rfind(' ')
+            if last_space > 350:
+                clean = truncated[:last_space] + "..."
+            else:
+                clean = truncated + "..."
 
     return clean if clean else "No description available."
 
