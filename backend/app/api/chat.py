@@ -5,7 +5,7 @@ from app.db.neo4j import neo4j_db
 from app.services.llm_service import llm_service
 from loguru import logger
 
-router = APIRouter(prefix="/chat", tags=["Character Chat"])
+router = APIRouter(tags=["Character Chat"])
 
 
 class MessageHistory(BaseModel):
