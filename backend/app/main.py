@@ -268,3 +268,11 @@ try:
     logger.info("✅ Characters routes registered")
 except Exception as e:
     logger.warning(f"⚠️ Characters router skipped: {e}")
+
+# Health check endpoint
+try:
+    from app.api import health
+    app.include_router(health.router, prefix="/api", tags=["Health"])
+    logger.info("✅ Health routes registered")
+except Exception as e:
+    logger.warning(f"⚠️ Health router skipped: {e}")
