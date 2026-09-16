@@ -35,7 +35,7 @@ async def generate_theory(req: TheoryRequest, user: dict = Depends(get_current_u
         theory = await llm_service.generate(
             prompt=user_prompt,
             system_prompt=system_prompt,
-            max_tokens=600,
+            max_tokens=1500,
             use_cache=True,
             temperature=0.7
         )
