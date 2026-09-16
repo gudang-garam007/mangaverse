@@ -1,6 +1,21 @@
 "use client";
 import { useState } from "react";
 
+// Helper function to clean markdown artifacts
+const cleanMarkdown = (text: string) => {
+  return text
+    .replace(/\*\*/g, "")           // Remove **bold**
+    .replace(/\*/g, "")             // Remove *italic*
+    .replace(/##/g, "")             // Remove headers
+    .replace(/###/g, "")
+    .replace(/`/g, "")              // Remove code blocks
+    .replace(/\|/g, "")             // Remove table pipes
+    .replace(/---/g, "")            // Remove horizontal lines
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1") // Remove links, keep text
+    .replace(/\n{3,}/g, "\n\n")     // Remove extra newlines
+    .trim();
+};
+
 export default function TheoryPage() {
   const [manga, setManga] = useState("");
   const [topic, setTopic] = useState("");
@@ -55,6 +70,22 @@ export default function TheoryPage() {
       });
     } catch (err) {
       console.error("Vote failed", err);
+    }
+  };
+
+  const handleShare = () => {
+    const cleanText = cleanMarkdown(theoryData.text).substring(0, 250) + "...";
+    const shareMessage = `🔮 Manga Theory: ${topic}\n\n${cleanText}\n\nRead full theory & vote here:`;
+
+    if (navigator.share) {
+      navigator.share({
+        title: `Manga Theory: ${manga}`,
+        text: shareMessage,
+        url: window.location.href
+      }).catch(console.error);
+    } else {
+      navigator.clipboard.writeText(`${shareMessage}\n${window.location.href}`);
+      alert("🔗 Theory link copied to clipboard!");
     }
   };
 
@@ -132,10 +163,21 @@ export default function TheoryPage() {
                 </div>
               )}
 
-              {/* Theory Text */}
+              {/* ✅ NEW: Share Button */}
+              <button
+                onClick={handleShare}
+                className="w-full mb-6 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold py-3 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                </svg>
+                Share Theory
+              </button>
+
+              {/* ✅ UPDATED: Clean Theory Text */}
               <div className="bg-black/20 rounded-xl p-5 mb-6 border-l-4 border-amber-500">
                 <p className="text-gray-200 leading-relaxed whitespace-pre-wrap text-lg">
-                  {theoryData.text}
+                  {cleanMarkdown(theoryData.text)}
                 </p>
               </div>
 
