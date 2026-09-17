@@ -1,25 +1,24 @@
-# backend/app/api/deps.py
+import uuid
 from fastapi import Depends, HTTPException, Header
 from typing import Optional
 from app.db.redis import redis_db
 
+# Fixed UUID for mock user so their berries don't reset on every request
+MOCK_USER_ID = "12345678-1234-1234-1234-123456789012"
 
 async def get_current_user(authorization: Optional[str] = Header(None)) -> dict:
     """
     MVP Mock Authentication: Returns a default free user so you can test without login UI.
     """
     return {
-        "user_id": "anonymous_user_123",
+        "id": MOCK_USER_ID,          # ✅ Added 'id' for DB compatibility
+        "user_id": MOCK_USER_ID,
         "username": "manga_fan",
         "tier": "free",
         "email": "test@mangaverse.com"
     }
 
-
 async def check_feature_limit(user: dict, feature: str, free_limit: int = 3):
-    """
-    Checks Redis for daily usage limits.
-    """
     user_id = user.get("user_id", "anonymous")
     redis_key = f"daily_usage:{user_id}:{feature}"
 
@@ -31,11 +30,10 @@ async def check_feature_limit(user: dict, feature: str, free_limit: int = 3):
             raise HTTPException(
                 status_code=429,
                 detail=f"Daily limit reached ({free_limit}). Upgrade to Premium for unlimited access."
-            )
+                )
 
         await redis_db.incr(redis_key)
         if count == 0:
-            await redis_db.expire(redis_key, 86400)  # 24 hours
+            await redis_db.expire(redis_key, 86400)
     except Exception as e:
-        # Failsafe: If Redis is acting up, don't block the user in MVP
         print(f"Redis limit check skipped: {e}")

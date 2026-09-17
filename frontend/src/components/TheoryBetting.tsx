@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface TheoryBettingProps {
   theoryId: string;
@@ -9,22 +9,30 @@ interface TheoryBettingProps {
 
 export function TheoryBetting({ theoryId, userBerries, onBerriesChange }: TheoryBettingProps) {
   const [betAmount, setBetAmount] = useState(50);
-  const [loading, setLoading] = useState(false);
+  const [bettingCanon, setBettingCanon] = useState(false); // ✅ Separate loading states
+  const [bettingClown, setBettingClown] = useState(false);
   const [hasBet, setHasBet] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const handleBet = async (type: "canon" | "clown") => {
     if (betAmount > userBerries) {
-      alert("Not enough berries!");
+      setErrorMessage("Not enough berries!");
       return;
     }
 
-    setLoading(true);
+    setErrorMessage("");
+
+    // ✅ Set specific loading state
+    if (type === "canon") setBettingCanon(true);
+    else setBettingClown(true);
+
     try {
+      const token = localStorage.getItem('token');
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/bet/place`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${localStorage.getItem('token')}`
+          ...(token ? { "Authorization": `Bearer ${token}` } : {})
         },
         body: JSON.stringify({
           theory_id: theoryId,
@@ -38,14 +46,18 @@ export function TheoryBetting({ theoryId, userBerries, onBerriesChange }: Theory
       if (res.ok) {
         setHasBet(true);
         onBerriesChange(data.new_balance);
+        setErrorMessage("");
         alert(`✅ Bet placed! ₿${betAmount} on ${type.toUpperCase()}`);
       } else {
-        alert(data.detail || "Failed to place bet");
+        setErrorMessage(data.detail || "Failed to place bet");
       }
-    } catch (err) {
-      alert("Network error");
+    } catch (err: any) {
+      console.error("Bet error:", err);
+      setErrorMessage(`Network error: ${err.message || "Please check your connection"}`);
     } finally {
-      setLoading(false);
+      // ✅ Reset specific loading state
+      if (type === "canon") setBettingCanon(false);
+      else setBettingClown(false);
     }
   };
 
@@ -91,14 +103,21 @@ export function TheoryBetting({ theoryId, userBerries, onBerriesChange }: Theory
         </div>
       </div>
 
+      {/* ✅ Error Message Display */}
+      {errorMessage && (
+        <div className="mb-4 bg-red-900/30 border border-red-500/50 rounded-xl p-3 text-red-300 text-sm">
+          ⚠️ {errorMessage}
+        </div>
+      )}
+
       {/* Bet Buttons */}
       <div className="grid grid-cols-2 gap-3">
         <button
           onClick={() => handleBet("canon")}
-          disabled={loading || hasBet}
+          disabled={bettingCanon || bettingClown || hasBet}
           className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-green-900/30"
         >
-          {loading ? (
+          {bettingCanon ? (
             <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
           ) : (
             <>
@@ -110,10 +129,10 @@ export function TheoryBetting({ theoryId, userBerries, onBerriesChange }: Theory
 
         <button
           onClick={() => handleBet("clown")}
-          disabled={loading || hasBet}
+          disabled={bettingCanon || bettingClown || hasBet}
           className="bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-500 hover:to-pink-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-red-900/30"
         >
-          {loading ? (
+          {bettingClown ? (
             <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
           ) : (
             <>

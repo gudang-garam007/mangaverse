@@ -23,12 +23,23 @@ class DailyRewardResponse(BaseModel):
     already_claimed: bool
 
 
-# Helper function to get ORM User object from dict
+# ✅ UPDATED: Auto-creates user in DB if they don't exist (Perfect for Mock Auth)
 def get_user_orm(current_user: dict, db: Session) -> User:
-    user_id = current_user.get("id") or current_user.get("sub")
+    user_id = current_user.get("id") or current_user.get("user_id")
     user = db.query(User).filter(User.id == user_id).first()
+
     if not user:
-        raise HTTPException(status_code=404, detail="User not found in database")
+        user = User(
+            id=user_id,
+            email=current_user.get("email", "mock@mangaverse.com"),
+            display_name=current_user.get("username", "Manga Fan"),
+            berries=1000,
+            daily_login_streak=0
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
     return user
 
 
