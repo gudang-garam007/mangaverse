@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 interface TheoryBettingProps {
   theoryId: string;
@@ -9,7 +9,7 @@ interface TheoryBettingProps {
 
 export function TheoryBetting({ theoryId, userBerries, onBerriesChange }: TheoryBettingProps) {
   const [betAmount, setBetAmount] = useState(50);
-  const [bettingCanon, setBettingCanon] = useState(false); // ✅ Separate loading states
+  const [bettingCanon, setBettingCanon] = useState(false);
   const [bettingClown, setBettingClown] = useState(false);
   const [hasBet, setHasBet] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -21,18 +21,18 @@ export function TheoryBetting({ theoryId, userBerries, onBerriesChange }: Theory
     }
 
     setErrorMessage("");
-
-    // ✅ Set specific loading state
     if (type === "canon") setBettingCanon(true);
     else setBettingClown(true);
 
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/bet/place`, {
+      // ✅ Fallback URL agar env var set nahi hai
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://mangaverse-backend.onrender.com";
+
+      const res = await fetch(`${API_URL}/api/bet/place`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { "Authorization": `Bearer ${token}` } : {})
+          "Authorization": "Bearer mock-token" // Mock auth ke liye
         },
         body: JSON.stringify({
           theory_id: theoryId,
@@ -41,21 +41,27 @@ export function TheoryBetting({ theoryId, userBerries, onBerriesChange }: Theory
         })
       });
 
-      const data = await res.json();
+      // ✅ Read raw text first to see the actual backend error if JSON fails
+      const responseText = await res.text();
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (e) {
+        data = { detail: responseText }; // Agar HTML error page aaya ho
+      }
 
       if (res.ok) {
         setHasBet(true);
         onBerriesChange(data.new_balance);
         setErrorMessage("");
-        alert(`✅ Bet placed! ₿${betAmount} on ${type.toUpperCase()}`);
       } else {
-        setErrorMessage(data.detail || "Failed to place bet");
+        console.error("Backend Error:", data);
+        setErrorMessage(data.detail || `Server Error: ${res.status}`);
       }
     } catch (err: any) {
-      console.error("Bet error:", err);
-      setErrorMessage(`Network error: ${err.message || "Please check your connection"}`);
+      console.error("Fetch Error:", err);
+      setErrorMessage(`Network error: ${err.message}. Check console for details.`);
     } finally {
-      // ✅ Reset specific loading state
       if (type === "canon") setBettingCanon(false);
       else setBettingClown(false);
     }
@@ -74,11 +80,8 @@ export function TheoryBetting({ theoryId, userBerries, onBerriesChange }: Theory
         </div>
       </div>
 
-      {/* Bet Amount Input */}
       <div className="mb-4">
-        <label className="text-xs text-gray-400 uppercase tracking-wider mb-2 block">
-          Bet Amount
-        </label>
+        <label className="text-xs text-gray-400 uppercase tracking-wider mb-2 block">Bet Amount</label>
         <div className="flex gap-2">
           <input
             type="number"
@@ -91,11 +94,7 @@ export function TheoryBetting({ theoryId, userBerries, onBerriesChange }: Theory
           />
           <div className="flex gap-2">
             {[50, 100, 200].map(amount => (
-              <button
-                key={amount}
-                onClick={() => setBetAmount(amount)}
-                className="bg-gray-800 hover:bg-gray-700 text-amber-400 font-bold px-3 py-2 rounded-lg transition text-sm"
-              >
+              <button key={amount} onClick={() => setBetAmount(amount)} className="bg-gray-800 hover:bg-gray-700 text-amber-400 font-bold px-3 py-2 rounded-lg transition text-sm">
                 ₿{amount}
               </button>
             ))}
@@ -103,28 +102,19 @@ export function TheoryBetting({ theoryId, userBerries, onBerriesChange }: Theory
         </div>
       </div>
 
-      {/* ✅ Error Message Display */}
       {errorMessage && (
         <div className="mb-4 bg-red-900/30 border border-red-500/50 rounded-xl p-3 text-red-300 text-sm">
           ⚠️ {errorMessage}
         </div>
       )}
 
-      {/* Bet Buttons */}
       <div className="grid grid-cols-2 gap-3">
         <button
           onClick={() => handleBet("canon")}
           disabled={bettingCanon || bettingClown || hasBet}
           className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-green-900/30"
         >
-          {bettingCanon ? (
-            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-          ) : (
-            <>
-              <span className="text-xl">✅</span>
-              <span>Bet CANON</span>
-            </>
-          )}
+          {bettingCanon ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <><span className="text-xl">✅</span><span>Bet CANON</span></>}
         </button>
 
         <button
@@ -132,22 +122,11 @@ export function TheoryBetting({ theoryId, userBerries, onBerriesChange }: Theory
           disabled={bettingCanon || bettingClown || hasBet}
           className="bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-500 hover:to-pink-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-red-900/30"
         >
-          {bettingClown ? (
-            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-          ) : (
-            <>
-              <span className="text-xl">🤡</span>
-              <span>Bet CLOWN</span>
-            </>
-          )}
+          {bettingClown ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <><span className="text-xl">🤡</span><span>Bet CLOWN</span></>}
         </button>
       </div>
 
-      {hasBet && (
-        <div className="mt-3 text-center text-sm text-amber-400/80 animate-pulse">
-          ✅ Your bet has been placed!
-        </div>
-      )}
+      {hasBet && <div className="mt-3 text-center text-sm text-amber-400/80 animate-pulse">✅ Your bet has been placed!</div>}
     </div>
   );
 }
