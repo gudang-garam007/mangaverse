@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
+from sqlalchemy import select
 from pydantic import BaseModel
 from app.db.postgres import get_db
 from app.models.user import User
@@ -27,7 +27,7 @@ class DailyRewardResponse(BaseModel):
 async def get_user_orm(current_user: dict, db: AsyncSession) -> User:
     user_id = current_user.get("id") or current_user.get("user_id")
 
-    # ✅ Async query
+    # ✅ YE ASYNC QUERY HAI (db.query use NAHI ho raha)
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
 
@@ -52,10 +52,7 @@ async def get_user_balance(
         db: AsyncSession = Depends(get_db)
 ):
     user = await get_user_orm(current_user, db)
-    return {
-        "berries": user.berries or 1000,
-        "streak": user.daily_login_streak or 0
-    }
+    return {"berries": user.berries or 1000, "streak": user.daily_login_streak or 0}
 
 
 @router.post("/place")
@@ -66,10 +63,8 @@ async def place_bet(
 ):
     if req.bet_type not in ["canon", "clown"]:
         raise HTTPException(400, detail="Invalid bet type")
-    if req.amount < 10:
-        raise HTTPException(400, detail="Minimum bet is 10 berries")
-    if req.amount > 1000:
-        raise HTTPException(400, detail="Maximum bet is 1000 berries")
+    if req.amount < 10 or req.amount > 1000:
+        raise HTTPException(400, detail="Bet amount must be between 10 and 1000")
 
     user = await get_user_orm(current_user, db)
     current_balance = user.berries or 1000
@@ -83,12 +78,7 @@ async def place_bet(
     await db.refresh(user)
 
     logger.info(f"✅ User {user.id} placed {req.bet_type} bet of ₿{req.amount}")
-
-    return {
-        "status": "success",
-        "message": f"Bet placed: {req.bet_type.upper()} for {req.amount}",
-        "new_balance": user.berries
-    }
+    return {"status": "success", "message": "Bet placed", "new_balance": user.berries}
 
 
 @router.get("/daily-reward")
@@ -110,16 +100,11 @@ async def claim_daily_reward(
     streak = user.daily_login_streak or 0
     if user.last_login_date:
         days_diff = (today - user.last_login_date).days
-        if days_diff == 1:
-            streak += 1
-        else:
-            streak = 1
+        streak = streak + 1 if days_diff == 1 else 1
     else:
         streak = 1
 
-    base_reward = 50
-    streak_bonus = min(streak * 10, 100)
-    total_reward = base_reward + streak_bonus
+    total_reward = 50 + min(streak * 10, 100)
 
     user.berries = (user.berries or 1000) + total_reward
     user.total_berry_earned = (user.total_berry_earned or 0) + total_reward
@@ -129,7 +114,6 @@ async def claim_daily_reward(
     await db.refresh(user)
 
     logger.info(f"✅ User {user.id} claimed daily reward: ₿{total_reward} (streak: {streak})")
-
     return DailyRewardResponse(
         berries_added=total_reward,
         new_balance=user.berries,
