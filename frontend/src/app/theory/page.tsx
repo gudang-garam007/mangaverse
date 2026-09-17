@@ -1,11 +1,10 @@
 "use client";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { toPng } from "html-to-image";
 import { TheoryShareCard } from "@/components/TheoryShareCard";
-import { TheoryBetting } from "@/components/TheoryBetting"; // ✅ NEW
+import { TheoryBetting } from "@/components/TheoryBetting";
 import { DailyReward } from "@/components/DailyReward";
 
-// Helper function to clean markdown
 const cleanMarkdown = (text: string) => {
   return text
     .replace(/\*\*/g, "")
@@ -20,40 +19,26 @@ const cleanMarkdown = (text: string) => {
     .trim();
 };
 
-// Generate summary from theory text
-// Generate summary from theory text
 const generateSummary = (text: string) => {
   const cleanText = cleanMarkdown(text);
-
-  // Remove extra whitespace and normalize
   const normalizedText = cleanText.replace(/\s+/g, ' ').trim();
-
-  // Split into sentences properly
   const sentences = normalizedText.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 30);
 
-  // Take first 2-3 complete sentences for a good summary
   let summary = '';
-
   if (sentences.length >= 2) {
-    // Try to take 2-3 sentences but keep under 400 chars
     summary = sentences.slice(0, 3).join(' ');
-
-    // If still too long, truncate at word boundary
     if (summary.length > 400) {
       summary = summary.substring(0, 400);
-      // Cut at last space to avoid breaking word
       const lastSpace = summary.lastIndexOf(' ');
       summary = summary.substring(0, lastSpace) + '...';
     }
   } else {
-    // Fallback: just take first 400 chars
     summary = normalizedText.substring(0, 400);
     if (normalizedText.length > 400) {
       const lastSpace = summary.lastIndexOf(' ');
       summary = summary.substring(0, lastSpace) + '...';
     }
   }
-
   return summary.trim();
 };
 
@@ -65,11 +50,10 @@ export default function TheoryPage() {
   const [userVote, setUserVote] = useState<"agree" | "clown" | null>(null);
   const [showShareCard, setShowShareCard] = useState(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [userBerries, setUserBerries] = useState(1000);
 
-  const [userBerries, setUserBerries] = useState(1000); // ✅ NEW
   const cardRef = useRef<HTMLDivElement>(null);
 
-  // ✅ NEW: Fetch user balance on mount
   useEffect(() => {
     const fetchBalance = async () => {
       try {
@@ -87,6 +71,7 @@ export default function TheoryPage() {
     };
     fetchBalance();
   }, []);
+
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -94,9 +79,13 @@ export default function TheoryPage() {
     setShowShareCard(false);
 
     try {
+      const token = localStorage.getItem('token');
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/theory/generate`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { "Authorization": `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({ manga_title: manga, topic }),
       });
       const data = await res.json();
@@ -129,9 +118,13 @@ export default function TheoryPage() {
     setUserVote(type);
 
     try {
+      const token = localStorage.getItem('token');
       await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/theory/vote`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { "Authorization": `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({ theory_id: theoryData.id, vote_type: type }),
       });
     } catch (err) {
@@ -139,28 +132,22 @@ export default function TheoryPage() {
     }
   };
 
-  const handleShareClick = () => {
-    setShowShareCard(true);
-  };
+  const handleShareClick = () => setShowShareCard(true);
 
   const handleDownloadImage = async () => {
     if (!cardRef.current) return;
-
     setIsGeneratingImage(true);
-
     try {
       const dataUrl = await toPng(cardRef.current, {
         quality: 1.0,
         pixelRatio: 2,
         cacheBust: true,
       });
-
       const link = document.createElement("a");
       link.download = `manga-theory-${manga}-${Date.now()}.png`;
       link.href = dataUrl;
       link.click();
     } catch (err) {
-      console.error("Failed to generate image", err);
       alert("Failed to generate image. Please try again.");
     } finally {
       setIsGeneratingImage(false);
@@ -169,16 +156,13 @@ export default function TheoryPage() {
 
   const handleDirectShare = async () => {
     if (!cardRef.current) return;
-
     setIsGeneratingImage(true);
-
     try {
       const dataUrl = await toPng(cardRef.current, {
         quality: 1.0,
         pixelRatio: 2,
         cacheBust: true,
       });
-
       const blob = await (await fetch(dataUrl)).blob();
       const file = new File([blob], `manga-theory-${manga}.png`, { type: "image/png" });
 
@@ -189,7 +173,6 @@ export default function TheoryPage() {
           files: [file],
         });
       } else {
-        // Fallback: Download image
         const link = document.createElement("a");
         link.download = `manga-theory-${manga}-${Date.now()}.png`;
         link.href = dataUrl;
@@ -197,7 +180,6 @@ export default function TheoryPage() {
         alert("Image downloaded! Share it manually.");
       }
     } catch (err) {
-      console.error("Share failed", err);
       alert("Share failed. Try downloading the image instead.");
     } finally {
       setIsGeneratingImage(false);
@@ -205,12 +187,13 @@ export default function TheoryPage() {
   };
 
   return (
-    <div className="flex flex-col md:flex-row items-center justify-between mb-8 gap-4">
+    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-amber-950/10 to-gray-950 text-gray-100 p-6">
+      <div className="max-w-4xl mx-auto">
+        <div className="flex flex-col md:flex-row items-center justify-between mb-8 gap-4">
           <h1 className="text-4xl md:text-5xl font-black text-center bg-gradient-to-r from-amber-400 via-orange-500 to-red-500 bg-clip-text text-transparent">
-
-          🔮 Void Century Theories
-        </h1>
-        <DailyReward onBerriesChange={setUserBerries} />
+            🔮 Void Century Theories
+          </h1>
+          <DailyReward onBerriesChange={setUserBerries} />
         </div>
 
         <form onSubmit={handleGenerate} className="space-y-4 mb-8">
@@ -241,7 +224,6 @@ export default function TheoryPage() {
 
         {theoryData && theoryData.text && (
           <div className="relative animate-in fade-in slide-in-from-bottom-4 duration-700">
-            {/* Wanted Poster Stamp */}
             <div className="absolute -top-4 -right-4 rotate-12 z-10 hidden md:block">
               <div className="bg-red-600 text-white px-4 py-2 rounded-lg border-4 border-red-800 shadow-xl transform -rotate-6">
                 <div className="text-[10px] font-black uppercase tracking-widest text-center">
@@ -258,7 +240,6 @@ export default function TheoryPage() {
                 📜 Decoded Theory
               </h2>
 
-              {/* Canon Accuracy Meter */}
               {theoryData.canonAccuracy && (
                 <div className="mb-6 bg-black/40 rounded-xl p-4 border border-gray-800">
                   <div className="flex justify-between items-center mb-2">
@@ -291,7 +272,6 @@ export default function TheoryPage() {
                 </div>
               )}
 
-              {/* ✅ NEW: Share Button */}
               <button
                 onClick={handleShareClick}
                 className="w-full mb-6 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold py-3 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20"
@@ -312,15 +292,12 @@ export default function TheoryPage() {
                 Create Shareable Card
               </button>
 
-              {/* ✅ NEW: Share Card Preview */}
               {showShareCard && theoryData && (
                 <div className="mb-6 space-y-4">
                   <div className="bg-black/40 rounded-xl p-4 border border-blue-500/30">
                     <div className="text-sm text-blue-400 font-bold mb-3">
                       📸 Preview Your Share Card:
                     </div>
-
-                    {/* Scrollable container for card */}
                     <div className="overflow-x-auto pb-4">
                       <div className="inline-block min-w-[600px]">
                         <TheoryShareCard
@@ -334,8 +311,6 @@ export default function TheoryPage() {
                         />
                       </div>
                     </div>
-
-                    {/* Action Buttons */}
                     <div className="grid grid-cols-2 gap-3 mt-4">
                       <button
                         onClick={handleDownloadImage}
@@ -381,14 +356,12 @@ export default function TheoryPage() {
                 </div>
               )}
 
-              {/* Theory Text */}
               <div className="bg-black/20 rounded-xl p-5 mb-6 border-l-4 border-amber-500">
                 <p className="text-gray-200 leading-relaxed whitespace-pre-wrap text-lg">
                   {cleanMarkdown(theoryData.text)}
                 </p>
               </div>
 
-                            {/* ✅ NEW: Betting Section */}
               {theoryData.id && (
                 <TheoryBetting
                   theoryId={theoryData.id}
@@ -397,11 +370,7 @@ export default function TheoryPage() {
                 />
               )}
 
-              {/* Voting Section */}
               <div className="grid grid-cols-2 gap-4 mt-6">
-
-              {/* Voting Section */}
-              <div className="grid grid-cols-2 gap-4">
                 <button
                   onClick={() => handleVote("agree")}
                   disabled={!!userVote}
