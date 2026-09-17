@@ -12,7 +12,7 @@ router = APIRouter(prefix="/bet", tags=["Betting"])
 
 class PlaceBetRequest(BaseModel):
     theory_id: str
-    bet_type: str  # "canon" or "clown"
+    bet_type: str
     amount: int
 
 
@@ -23,12 +23,21 @@ class DailyRewardResponse(BaseModel):
     already_claimed: bool
 
 
+# Helper function to get ORM User object from dict
+def get_user_orm(current_user: dict, db: Session) -> User:
+    user_id = current_user.get("id") or current_user.get("sub")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found in database")
+    return user
+
+
 @router.get("/user/balance")
 async def get_user_balance(
-        user: User = Depends(get_current_user),
+        current_user: dict = Depends(get_current_user),
         db: Session = Depends(get_db)
 ):
-    """Get current user's berry balance"""
+    user = get_user_orm(current_user, db)
     return {
         "berries": user.berries or 1000,
         "streak": user.daily_login_streak or 0
@@ -38,31 +47,28 @@ async def get_user_balance(
 @router.post("/place")
 async def place_bet(
         req: PlaceBetRequest,
-        user: User = Depends(get_current_user),
+        current_user: dict = Depends(get_current_user),
         db: Session = Depends(get_db)
 ):
-    """Place a bet on a theory"""
     if req.bet_type not in ["canon", "clown"]:
         raise HTTPException(400, detail="Invalid bet type")
-
     if req.amount < 10:
         raise HTTPException(400, detail="Minimum bet is 10 berries")
-
     if req.amount > 1000:
         raise HTTPException(400, detail="Maximum bet is 1000 berries")
 
+    user = get_user_orm(current_user, db)
     current_balance = user.berries or 1000
 
     if current_balance < req.amount:
         raise HTTPException(400, detail=f"Not enough berries! You have ₿{current_balance}")
 
-    # Deduct berries
     user.berries = current_balance - req.amount
     user.total_berry_spent = (user.total_berry_spent or 0) + req.amount
     db.commit()
     db.refresh(user)
 
-    logger.info(f"✅ User {user.id} placed {req.bet_type} bet of ₿{req.amount} on theory {req.theory_id}")
+    logger.info(f"✅ User {user.id} placed {req.bet_type} bet of ₿{req.amount}")
 
     return {
         "status": "success",
@@ -73,13 +79,12 @@ async def place_bet(
 
 @router.get("/daily-reward")
 async def claim_daily_reward(
-        user: User = Depends(get_current_user),
+        current_user: dict = Depends(get_current_user),
         db: Session = Depends(get_db)
 ):
-    """Claim daily login reward"""
+    user = get_user_orm(current_user, db)
     today = date.today()
 
-    # Check if already claimed today
     if user.last_login_date == today:
         return DailyRewardResponse(
             berries_added=0,
@@ -88,9 +93,7 @@ async def claim_daily_reward(
             already_claimed=True
         )
 
-    # Calculate streak
     streak = user.daily_login_streak or 0
-
     if user.last_login_date:
         days_diff = (today - user.last_login_date).days
         if days_diff == 1:
@@ -100,12 +103,10 @@ async def claim_daily_reward(
     else:
         streak = 1
 
-    # Calculate reward based on streak
     base_reward = 50
-    streak_bonus = min(streak * 10, 100)  # Max 100 bonus
+    streak_bonus = min(streak * 10, 100)
     total_reward = base_reward + streak_bonus
 
-    # Update user
     user.berries = (user.berries or 1000) + total_reward
     user.total_berry_earned = (user.total_berry_earned or 0) + total_reward
     user.last_login_date = today

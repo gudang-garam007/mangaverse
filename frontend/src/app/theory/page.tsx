@@ -2,6 +2,8 @@
 import { useState, useRef } from "react";
 import { toPng } from "html-to-image";
 import { TheoryShareCard } from "@/components/TheoryShareCard";
+import { TheoryBetting } from "@/components/TheoryBetting"; // ✅ NEW
+import { DailyReward } from "@/components/DailyReward";
 
 // Helper function to clean markdown
 const cleanMarkdown = (text: string) => {
@@ -64,8 +66,27 @@ export default function TheoryPage() {
   const [showShareCard, setShowShareCard] = useState(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
 
+  const [userBerries, setUserBerries] = useState(1000); // ✅ NEW
   const cardRef = useRef<HTMLDivElement>(null);
 
+  // ✅ NEW: Fetch user balance on mount
+  useEffect(() => {
+    const fetchBalance = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/bet/user/balance`, {
+          headers: token ? { "Authorization": `Bearer ${token}` } : {}
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setUserBerries(data.berries);
+        }
+      } catch (err) {
+        console.error("Failed to fetch balance", err);
+      }
+    };
+    fetchBalance();
+  }, []);
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -187,8 +208,13 @@ export default function TheoryPage() {
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-amber-950/10 to-gray-950 text-gray-100 p-6">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-4xl md:text-5xl font-black text-center mb-8 bg-gradient-to-r from-amber-400 via-orange-500 to-red-500 bg-clip-text text-transparent">
+         <div className="flex flex-col md:flex-row items-center justify-between mb-8 gap-4">
+          <h1 className="text-4xl md:text-5xl font-black text-center bg-gradient-to-r from-amber-400 via-orange-500 to-red-500 bg-clip-text text-transparent">
+
           🔮 Void Century Theories
         </h1>
+        <DailyReward onBerriesChange={setUserBerries} />
+        </div>
 
         <form onSubmit={handleGenerate} className="space-y-4 mb-8">
           <input
@@ -364,6 +390,18 @@ export default function TheoryPage() {
                   {cleanMarkdown(theoryData.text)}
                 </p>
               </div>
+
+                            {/* ✅ NEW: Betting Section */}
+              {theoryData.id && (
+                <TheoryBetting
+                  theoryId={theoryData.id}
+                  userBerries={userBerries}
+                  onBerriesChange={setUserBerries}
+                />
+              )}
+
+              {/* Voting Section */}
+              <div className="grid grid-cols-2 gap-4 mt-6">
 
               {/* Voting Section */}
               <div className="grid grid-cols-2 gap-4">
