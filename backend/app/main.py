@@ -276,3 +276,13 @@ try:
     logger.info("✅ Health routes registered")
 except Exception as e:
     logger.warning(f"⚠️ Health router skipped: {e}")
+
+
+from app.api import bet
+
+# After other router registrations
+try:
+    app.include_router(bet.router, prefix="/api")
+    logger.info("✅ Betting routes registered")
+except Exception as e:
+    logger.warning(f"⚠️ Betting router skipped: {e}")

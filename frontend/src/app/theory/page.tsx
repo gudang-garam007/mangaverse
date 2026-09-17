@@ -19,22 +19,40 @@ const cleanMarkdown = (text: string) => {
 };
 
 // Generate summary from theory text
+// Generate summary from theory text
 const generateSummary = (text: string) => {
   const cleanText = cleanMarkdown(text);
-  const sentences = cleanText.split(/[.!?]+/).filter(s => s.trim().length > 20);
 
-  // Take first 2-3 meaningful sentences
-  const summary = sentences.slice(0, 3).join(". ").trim();
+  // Remove extra whitespace and normalize
+  const normalizedText = cleanText.replace(/\s+/g, ' ').trim();
 
-  // If summary is too short or too long, adjust
-  if (summary.length < 100) {
-    return cleanText.substring(0, 250) + "...";
+  // Split into sentences properly
+  const sentences = normalizedText.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 30);
+
+  // Take first 2-3 complete sentences for a good summary
+  let summary = '';
+
+  if (sentences.length >= 2) {
+    // Try to take 2-3 sentences but keep under 400 chars
+    summary = sentences.slice(0, 3).join(' ');
+
+    // If still too long, truncate at word boundary
+    if (summary.length > 400) {
+      summary = summary.substring(0, 400);
+      // Cut at last space to avoid breaking word
+      const lastSpace = summary.lastIndexOf(' ');
+      summary = summary.substring(0, lastSpace) + '...';
+    }
+  } else {
+    // Fallback: just take first 400 chars
+    summary = normalizedText.substring(0, 400);
+    if (normalizedText.length > 400) {
+      const lastSpace = summary.lastIndexOf(' ');
+      summary = summary.substring(0, lastSpace) + '...';
+    }
   }
-  if (summary.length > 300) {
-    return summary.substring(0, 300) + "...";
-  }
 
-  return summary + ".";
+  return summary.trim();
 };
 
 export default function TheoryPage() {
