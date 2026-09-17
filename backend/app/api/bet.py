@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 from pydantic import BaseModel
 from app.db.postgres import get_db
 from app.models.user import User
@@ -23,10 +24,12 @@ class DailyRewardResponse(BaseModel):
     already_claimed: bool
 
 
-# ✅ UPDATED: Auto-creates user in DB if they don't exist (Perfect for Mock Auth)
-def get_user_orm(current_user: dict, db: Session) -> User:
+async def get_user_orm(current_user: dict, db: AsyncSession) -> User:
     user_id = current_user.get("id") or current_user.get("user_id")
-    user = db.query(User).filter(User.id == user_id).first()
+
+    # ✅ Async query
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
 
     if not user:
         user = User(
@@ -37,8 +40,8 @@ def get_user_orm(current_user: dict, db: Session) -> User:
             daily_login_streak=0
         )
         db.add(user)
-        db.commit()
-        db.refresh(user)
+        await db.commit()
+        await db.refresh(user)
 
     return user
 
@@ -46,9 +49,9 @@ def get_user_orm(current_user: dict, db: Session) -> User:
 @router.get("/user/balance")
 async def get_user_balance(
         current_user: dict = Depends(get_current_user),
-        db: Session = Depends(get_db)
+        db: AsyncSession = Depends(get_db)
 ):
-    user = get_user_orm(current_user, db)
+    user = await get_user_orm(current_user, db)
     return {
         "berries": user.berries or 1000,
         "streak": user.daily_login_streak or 0
@@ -59,7 +62,7 @@ async def get_user_balance(
 async def place_bet(
         req: PlaceBetRequest,
         current_user: dict = Depends(get_current_user),
-        db: Session = Depends(get_db)
+        db: AsyncSession = Depends(get_db)
 ):
     if req.bet_type not in ["canon", "clown"]:
         raise HTTPException(400, detail="Invalid bet type")
@@ -68,7 +71,7 @@ async def place_bet(
     if req.amount > 1000:
         raise HTTPException(400, detail="Maximum bet is 1000 berries")
 
-    user = get_user_orm(current_user, db)
+    user = await get_user_orm(current_user, db)
     current_balance = user.berries or 1000
 
     if current_balance < req.amount:
@@ -76,14 +79,14 @@ async def place_bet(
 
     user.berries = current_balance - req.amount
     user.total_berry_spent = (user.total_berry_spent or 0) + req.amount
-    db.commit()
-    db.refresh(user)
+    await db.commit()
+    await db.refresh(user)
 
     logger.info(f"✅ User {user.id} placed {req.bet_type} bet of ₿{req.amount}")
 
     return {
         "status": "success",
-        "message": f"Bet placed: {req.bet_type.upper()} for ₿{req.amount}",
+        "message": f"Bet placed: {req.bet_type.upper()} for {req.amount}",
         "new_balance": user.berries
     }
 
@@ -91,9 +94,9 @@ async def place_bet(
 @router.get("/daily-reward")
 async def claim_daily_reward(
         current_user: dict = Depends(get_current_user),
-        db: Session = Depends(get_db)
+        db: AsyncSession = Depends(get_db)
 ):
-    user = get_user_orm(current_user, db)
+    user = await get_user_orm(current_user, db)
     today = date.today()
 
     if user.last_login_date == today:
@@ -122,8 +125,8 @@ async def claim_daily_reward(
     user.total_berry_earned = (user.total_berry_earned or 0) + total_reward
     user.last_login_date = today
     user.daily_login_streak = streak
-    db.commit()
-    db.refresh(user)
+    await db.commit()
+    await db.refresh(user)
 
     logger.info(f"✅ User {user.id} claimed daily reward: ₿{total_reward} (streak: {streak})")
 

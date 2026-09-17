@@ -79,6 +79,7 @@ app.add_middleware(
         "https://mangaverse-tau-umber.vercel.app",
         "https://manga-ta.vercel.app",
         "https://mangaverse-backend.onrender.com",
+         "https://*.vercel.app",
     ],
     allow_credentials=True,
     allow_methods=["*"],
