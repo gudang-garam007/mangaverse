@@ -205,10 +205,7 @@ export default function TheoryPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-amber-950/10 to-gray-950 text-gray-100 p-6">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-4xl md:text-5xl font-black text-center mb-8 bg-gradient-to-r from-amber-400 via-orange-500 to-red-500 bg-clip-text text-transparent">
-         <div className="flex flex-col md:flex-row items-center justify-between mb-8 gap-4">
+    <div className="flex flex-col md:flex-row items-center justify-between mb-8 gap-4">
           <h1 className="text-4xl md:text-5xl font-black text-center bg-gradient-to-r from-amber-400 via-orange-500 to-red-500 bg-clip-text text-transparent">
 
           🔮 Void Century Theories
